@@ -1,0 +1,384 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  avatar         String?
+  status         String   @default("active") // active, paused
+  timezone       String?  @default("America/New_York")
+  dailyCapacity  Int?     // max leads per day
+  weeklyCapacity Int?     // max leads per week
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  groupMemberships    GroupMember[]
+  assignments         Assignment[]
+  bookings            Booking[]
+  availability        Availability[]
+  timeOff             TimeOff[]
+  calendarSync        CalendarSync?
+  performanceMetrics  UserPerformanceMetric[]
+  distributionSnapshots DistributionSnapshot[]
+}
+
+model RoundRobinGroup {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  distributionMode String   @default("equal") // equal, weighted
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  members               GroupMember[]
+  rules                 Rule[]
+  fallbackRules         Rule[]                 @relation("FallbackGroup")
+  assignments           Assignment[]
+  distributionSnapshots DistributionSnapshot[]
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  weight    Int      @default(1) // for weighted distribution
+  createdAt DateTime @default(now())
+
+  // Relations
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group RoundRobinGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model Contact {
+  id               String   @id @default(cuid())
+  name             String
+  email            String?  @unique
+  phone            String?
+  company          String?
+  jobTitle         String?
+  leadSource       String?
+  industry         String?
+  country          String?
+  companySize      String?
+  customFields     String?  // JSON string for flexible custom fields
+  isDuplicate      Boolean  @default(false)
+  duplicateGroupId String?  // Groups duplicate contacts together
+  mergedIntoId     String?  // If merged, points to the master contact
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  assignments Assignment[]
+  bookings    Booking[]
+
+  @@index([isDuplicate])
+  @@index([duplicateGroupId])
+}
+
+model Ruleset {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rules    Rule[]
+  triggers RulesetTrigger[]
+}
+
+model RulesetTrigger {
+  id          String   @id @default(cuid())
+  rulesetId   String
+  triggerType String   // contact_created, contact_updated, form_submitted, api_webhook, manual
+  createdAt   DateTime @default(now())
+
+  // Relations
+  ruleset Ruleset @relation(fields: [rulesetId], references: [id], onDelete: Cascade)
+
+  @@unique([rulesetId, triggerType])
+}
+
+model Rule {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  rulesetId        String?
+  groupId          String
+  priority         Int      @default(0) // lower number = higher priority
+  isActive         Boolean  @default(true)
+  conditions       String   // JSON string of conditions
+  conditionLogic   String   @default("AND") // AND or OR
+  timeConstraints  String?  // JSON: { days: [1,2,3], hours: { start: 9, end: 17 }, timezone: "..." }
+  fallbackGroupId  String?  // if primary group unavailable
+  customExpression String?  // JavaScript expression for complex logic
+  matchCount       Int      @default(0) // analytics
+  conversionCount  Int      @default(0) // analytics
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  ruleset       Ruleset?         @relation(fields: [rulesetId], references: [id], onDelete: Cascade)
+  group         RoundRobinGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  fallbackGroup RoundRobinGroup? @relation("FallbackGroup", fields: [fallbackGroupId], references: [id])
+  analytics     RuleAnalytics[]
+}
+
+model Assignment {
+  id           String    @id @default(cuid())
+  contactId    String
+  userId       String
+  groupId      String
+  method       String    @default("auto") // auto, manual
+  ruleId       String?   // which rule triggered this (if auto)
+  responseTime Int?      // minutes until first response
+  convertedAt  DateTime? // when converted to customer
+  leadScore    Int?      // lead quality score
+  timezone     String?   // contact's timezone
+  metadata     String?   // JSON for additional context
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  contact Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   RoundRobinGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model Form {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  fields      String   // JSON array of field configurations
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  submissions FormSubmission[]
+}
+
+model FormSubmission {
+  id        String   @id @default(cuid())
+  formId    String
+  contactId String?  // Created contact (if routing succeeded)
+  data      String   // JSON of submitted data
+  createdAt DateTime @default(now())
+
+  // Relations
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id               String    @id @default(cuid())
+  contactId        String
+  userId           String
+  scheduledAt      DateTime
+  duration         Int       @default(30) // minutes
+  status           String    @default("scheduled") // scheduled, completed, cancelled, no_show
+  notes            String?
+  calendarEventId  String?   // Google/Outlook event ID
+  conferenceLink   String?   // Google Meet or Teams link
+  recordingLink    String?   // Recording URL if available
+  actualStartTime  DateTime? // When meeting actually started
+  actualEndTime    DateTime? // When meeting actually ended
+  attendeeCount    Int?      // Number of attendees who joined
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, scheduledAt])
+  @@index([status])
+}
+
+// User weekly availability schedule
+model Availability {
+  id        String  @id @default(cuid())
+  userId    String
+  dayOfWeek Int     // 0-6 (Sunday-Saturday)
+  startTime String  // "09:00"
+  endTime   String  // "17:00"
+  isActive  Boolean @default(true)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Time off / Out of office tracking
+model TimeOff {
+  id        String   @id @default(cuid())
+  userId    String
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startDate, endDate])
+}
+
+// Calendar integration sync status
+model CalendarSync {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  provider     String    // "google", "microsoft"
+  accessToken  String    // encrypted
+  refreshToken String    // encrypted
+  expiresAt    DateTime
+  calendarId   String?
+  email        String?   // Calendar account email for display
+  syncEnabled  Boolean   @default(true)
+  lastSyncAt   DateTime?
+  lastError    String?   // Store last sync error for debugging
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// User performance metrics (daily aggregations)
+model UserPerformanceMetric {
+  id              String   @id @default(cuid())
+  userId          String
+  date            DateTime // Date for daily aggregations
+  assignmentCount Int      @default(0)
+  responseCount   Int      @default(0)
+  conversionCount Int      @default(0)
+  avgResponseTime Float?   // minutes
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+// Rule performance analytics
+model RuleAnalytics {
+  id              String   @id @default(cuid())
+  ruleId          String
+  date            DateTime // Date for daily aggregations
+  matchCount      Int      @default(0)
+  assignmentCount Int      @default(0)
+  conversionCount Int      @default(0)
+
+  rule Rule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, date])
+  @@index([date])
+}
+
+// Distribution fairness tracking
+model DistributionSnapshot {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  date      DateTime // Date for daily aggregations
+  expected  Float    // expected percentage based on weight
+  actual    Float    // actual percentage received
+  count     Int      // actual count
+  variance  Float    // difference from expected
+  createdAt DateTime @default(now())
+
+  group RoundRobinGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId, date])
+  @@index([groupId, date])
+}
+
+// Webhook log for Salesforce/Workato integration
+model WebhookLog {
+  id           String    @id @default(cuid())
+  source       String    // "salesforce", "workato", "zapier"
+  eventType    String    // "contact.created", "lead.updated"
+  payload      String    // JSON payload
+  status       String    // "success", "failed", "pending"
+  error        String?
+  contactId    String?
+  assignmentId String?
+  createdAt    DateTime  @default(now())
+  processedAt  DateTime?
+
+  @@index([source, createdAt])
+  @@index([status])
+}
+
+// Salesforce sync status
+model SalesforceSync {
+  id            String   @id @default(cuid())
+  objectType    String   // "Contact", "Lead", "User"
+  localId       String   // RoundRobin ID
+  salesforceId  String   // SFDC ID
+  lastSyncAt    DateTime
+  syncDirection String   // "bidirectional", "to_sfdc", "from_sfdc"
+  syncStatus    String   @default("synced") // "synced", "pending", "error"
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([objectType, localId])
+  @@unique([objectType, salesforceId])
+  @@index([syncStatus])
+}
+
+// Onboarding wizard progress
+model OnboardingProgress {
+  id               String    @id @default(cuid())
+  organizationId   String?   @unique // for multi-tenant future
+  currentStep      Int       @default(0)
+  completedSteps   String    // JSON array of completed step IDs
+  selectedTemplate String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  completedAt      DateTime?
+}
+
+// Salesforce OAuth integration
+model SalesforceIntegration {
+  id           String    @id @default(cuid())
+  userId       String    // User who connected the integration
+  accessToken  String    // OAuth access token (encrypt in production)
+  refreshToken String?   // OAuth refresh token
+  instanceUrl  String    // Salesforce instance URL
+  orgId        String?   // Salesforce org ID
+  username     String?   // Connected Salesforce user
+  isActive     Boolean   @default(true)
+  lastSyncAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([userId])
+}
+
+// Temporary storage for OAuth PKCE code verifiers
+model OAuthVerifier {
+  id          String   @id @default(cuid())
+  state       String   @unique // State parameter for CSRF protection
+  verifier    String   // PKCE code verifier
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime // Auto-expire after 10 minutes
+
+  @@index([expiresAt])
+}
