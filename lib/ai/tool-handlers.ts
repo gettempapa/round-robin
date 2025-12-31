@@ -3,6 +3,15 @@
 
 import { db } from "@/lib/db";
 import { autoRouteContact, manualRouteToGroup } from "@/lib/routing-engine";
+import {
+  queryAllRecords,
+  queryContacts,
+  queryLeads,
+  getRecordById,
+  updateRecordOwner,
+  getSalesforceUsers,
+  checkSalesforceConnection,
+} from "@/lib/salesforce";
 
 export type ToolResult = {
   success: boolean;
@@ -107,89 +116,124 @@ export async function executeToolCall(
       }
 
       case "getContact": {
-        const contact = await db.contact.findUnique({
-          where: { id: toolInput.contactId },
-          include: {
-            assignments: {
-              include: {
-                user: true,
-                group: true,
-              },
-            },
-          },
-        });
-
-        if (!contact) {
-          return { success: false, error: "Contact not found" };
+        // Check if Salesforce is connected
+        const sfStatus = await checkSalesforceConnection();
+        if (!sfStatus.connected) {
+          return {
+            success: false,
+            error: "Salesforce is not connected. Please connect your Salesforce account first.",
+          };
         }
 
-        return {
-          success: true,
-          data: contact,
-          uiComponent: {
-            type: "contactCard",
-            props: {
-              contact,
-              expanded: true,
-              showAssignments: true,
-              actions: ["assign", "edit", "view"],
+        try {
+          const record = await getRecordById(toolInput.contactId);
+
+          if (!record) {
+            return { success: false, error: "Contact not found in Salesforce" };
+          }
+
+          // Transform to expected contact format
+          const contact = {
+            id: record.id,
+            name: record.name,
+            email: record.email,
+            company: record.company,
+            phone: record.phone,
+            leadSource: record.leadSource,
+            industry: record.industry,
+            _type: record._type,
+            owner: record.owner,
+            assignments: record.owner ? [{
+              user: { id: record.owner.id, name: record.owner.name, email: record.owner.email },
+              group: null,
+            }] : [],
+          };
+
+          return {
+            success: true,
+            data: contact,
+            uiComponent: {
+              type: "contactCard",
+              props: {
+                contact,
+                expanded: true,
+                showAssignments: true,
+                actions: ["assign", "view"],
+              },
             },
-          },
-        };
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to fetch contact from Salesforce",
+          };
+        }
       }
 
       case "listContacts": {
-        const { filter = "all", limit = 10, search } = toolInput;
+        const { filter = "all", limit = 10, search, recordType = "all" } = toolInput;
 
-        let whereClause: any = {};
+        // Check if Salesforce is connected
+        const sfStatus = await checkSalesforceConnection();
+        if (!sfStatus.connected) {
+          return {
+            success: false,
+            error: "Salesforce is not connected. Please connect your Salesforce account first.",
+          };
+        }
 
+        // Build filters for Salesforce query
+        const filters: any = {};
         if (filter === "unassigned") {
-          whereClause.assignments = { none: {} };
+          filters.hasOwner = false;
         } else if (filter === "assigned") {
-          whereClause.assignments = { some: {} };
-        } else if (filter === "recent") {
-          const weekAgo = new Date();
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          whereClause.createdAt = { gte: weekAgo };
+          filters.hasOwner = true;
         }
 
-        if (search) {
-          whereClause.OR = [
-            { name: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-            { company: { contains: search, mode: "insensitive" } },
-          ];
-        }
+        try {
+          const result = await queryAllRecords({
+            limit,
+            search,
+            recordType: recordType as 'all' | 'contact' | 'lead',
+            filters,
+          });
 
-        const contacts = await db.contact.findMany({
-          where: whereClause,
-          take: limit,
-          orderBy: { createdAt: "desc" },
-          include: {
-            assignments: {
-              include: {
-                user: { select: { id: true, name: true, email: true } },
-                group: { select: { id: true, name: true } },
+          // Transform Salesforce records to match expected contact format
+          const contacts = result.records.map((record: any) => ({
+            id: record.id,
+            name: record.name,
+            email: record.email,
+            company: record.company,
+            phone: record.phone,
+            leadSource: record.leadSource,
+            industry: record.industry,
+            _type: record._type,
+            owner: record.owner,
+            assignments: record.owner ? [{
+              user: { id: record.owner.id, name: record.owner.name, email: record.owner.email },
+              group: null,
+            }] : [],
+          }));
+
+          return {
+            success: true,
+            data: { contacts, total: result.totalSize, showing: contacts.length },
+            uiComponent: {
+              type: "contactList",
+              props: {
+                contacts,
+                total: result.totalSize,
+                filter,
+                actions: ["assign", "view"],
               },
             },
-          },
-        });
-
-        const total = await db.contact.count({ where: whereClause });
-
-        return {
-          success: true,
-          data: { contacts, total, showing: contacts.length },
-          uiComponent: {
-            type: "contactList",
-            props: {
-              contacts,
-              total,
-              filter,
-              actions: ["assign", "view"],
-            },
-          },
-        };
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to fetch contacts from Salesforce",
+          };
+        }
       }
 
       // ============ ASSIGNMENT OPERATIONS ============
@@ -309,6 +353,98 @@ export async function executeToolCall(
             },
           },
         };
+      }
+
+      // ============ SALESFORCE OWNER ASSIGNMENT ============
+      case "assignSalesforceOwner": {
+        const { recordId, ownerId } = toolInput;
+
+        // Check if Salesforce is connected
+        const sfStatus = await checkSalesforceConnection();
+        if (!sfStatus.connected) {
+          return {
+            success: false,
+            error: "Salesforce is not connected. Please connect your Salesforce account first.",
+          };
+        }
+
+        try {
+          // Update the owner in Salesforce
+          await updateRecordOwner(recordId, ownerId);
+
+          // Get the updated record and owner details
+          const record = await getRecordById(recordId);
+          const sfUsers = await getSalesforceUsers();
+          const owner = sfUsers.find((u: any) => u.id === ownerId);
+
+          return {
+            success: true,
+            data: { record, owner },
+            uiComponent: {
+              type: "notification",
+              props: {
+                type: "success",
+                message: `Assigned ${record?.name || 'record'} to ${owner?.name || 'owner'} in Salesforce`,
+              },
+            },
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to assign owner in Salesforce",
+          };
+        }
+      }
+
+      case "routeSalesforceRecord": {
+        const { recordId, groupId } = toolInput;
+
+        // Check if Salesforce is connected
+        const sfConnStatus = await checkSalesforceConnection();
+        if (!sfConnStatus.connected) {
+          return {
+            success: false,
+            error: "Salesforce is not connected. Please connect your Salesforce account first.",
+          };
+        }
+
+        try {
+          // Call the API endpoint to route the record
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/salesforce/records/${recordId}/route-to-group`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ groupId }),
+            }
+          );
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            return {
+              success: false,
+              error: result.error || "Failed to route record",
+            };
+          }
+
+          return {
+            success: true,
+            data: result,
+            uiComponent: {
+              type: "notification",
+              props: {
+                type: "success",
+                message: `Routed ${result.record?.name || 'record'} to ${result.assignedTo?.name || 'user'} via ${result.group?.name || 'group'}`,
+              },
+            },
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Failed to route record through group",
+          };
+        }
       }
 
       // ============ RULE OPERATIONS ============
@@ -693,6 +829,7 @@ export async function executeToolCall(
         const assignments = await db.assignment.findMany({
           where: {
             createdAt: { gte: startDate },
+            contact: { id: { not: undefined } }, // Filter out assignments with deleted contacts
           },
           include: {
             user: true,

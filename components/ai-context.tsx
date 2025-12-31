@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import { toast } from "sonner";
-import { AIChat } from "./ai-chat";
+import { AICommandChat } from "./ai-command-chat";
 
 type AIContextType = {
   query: string;
@@ -44,7 +44,7 @@ export function AIProvider({ children }: { children: ReactNode }) {
   return (
     <AIContext.Provider value={{ query, setQuery, executeQuery, isProcessing, isChatOpen, openChat, closeChat }}>
       {children}
-      <AIChat
+      <AICommandChat
         isOpen={isChatOpen}
         onClose={closeChat}
         initialMessage={initialChatMessage}

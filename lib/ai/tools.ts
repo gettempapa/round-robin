@@ -49,6 +49,17 @@ export const toolSchemas = {
     reason: z.string().optional().describe("Reason for reassignment"),
   }),
 
+  // Salesforce operations
+  assignSalesforceOwner: z.object({
+    recordId: z.string().describe("Salesforce record ID (Contact or Lead)"),
+    ownerId: z.string().describe("Salesforce user ID to assign as owner"),
+  }),
+
+  routeSalesforceRecord: z.object({
+    recordId: z.string().describe("Salesforce record ID (Contact or Lead) to route"),
+    groupId: z.string().describe("ID of the round-robin group to route through"),
+  }),
+
   // Rule operations
   createRule: z.object({
     name: z.string().describe("Name of the routing rule"),
@@ -128,6 +139,7 @@ export const toolSchemas = {
     filter: z.enum(["all", "unassigned", "assigned", "recent"]).default("all"),
     limit: z.number().default(10).describe("Max number to return"),
     search: z.string().optional().describe("Search term for name/email/company"),
+    recordType: z.enum(["all", "contact", "lead"]).default("all").describe("Type of Salesforce record to query"),
   }),
 
   getContact: z.object({
@@ -251,6 +263,31 @@ export const claudeTools = [
         reason: { type: "string", description: "Reason for reassignment" },
       },
       required: ["contactId", "fromUserId", "toUserId"],
+    },
+  },
+  // Salesforce tools
+  {
+    name: "assignSalesforceOwner",
+    description: "Assign a Salesforce Contact or Lead to a user by updating the Owner field in Salesforce. Use this to route leads to team members.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        recordId: { type: "string", description: "Salesforce record ID (Contact or Lead)" },
+        ownerId: { type: "string", description: "Salesforce user ID to assign as owner" },
+      },
+      required: ["recordId", "ownerId"],
+    },
+  },
+  {
+    name: "routeSalesforceRecord",
+    description: "Route a Salesforce Contact or Lead through a round-robin group. This will automatically assign the record to the next available user in the group and update the Owner in Salesforce.",
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        recordId: { type: "string", description: "Salesforce record ID (Contact or Lead) to route" },
+        groupId: { type: "string", description: "ID of the round-robin group to route through" },
+      },
+      required: ["recordId", "groupId"],
     },
   },
   // Rule tools
@@ -382,13 +419,14 @@ export const claudeTools = [
   // Query/Display tools
   {
     name: "listContacts",
-    description: "List contacts with optional filtering. Returns data that will be displayed as a rich contact list UI.",
+    description: "List Salesforce contacts and leads with optional filtering. Returns data that will be displayed as a rich contact list UI. Data comes directly from Salesforce.",
     input_schema: {
       type: "object" as const,
       properties: {
-        filter: { type: "string", enum: ["all", "unassigned", "assigned", "recent"], description: "Filter type" },
+        filter: { type: "string", enum: ["all", "unassigned", "assigned", "recent"], description: "Filter type - 'unassigned' shows records with no Owner" },
         limit: { type: "number", description: "Max contacts to return" },
         search: { type: "string", description: "Search term for name/email/company" },
+        recordType: { type: "string", enum: ["all", "contact", "lead"], description: "Type of Salesforce record to query" },
       },
     },
   },
@@ -481,6 +519,7 @@ export const claudeTools = [
 export const toolCategories = {
   contacts: ["createContact", "updateContact", "deleteContact", "getContact", "listContacts"],
   assignments: ["assignContact", "reassignContact"],
+  salesforce: ["assignSalesforceOwner", "routeSalesforceRecord"],
   rules: ["createRule", "toggleRule", "deleteRule", "listRules"],
   groups: ["createGroup", "addUserToGroup", "removeUserFromGroup", "listGroups"],
   users: ["createUser", "updateUser", "listUsers"],

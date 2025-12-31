@@ -11,16 +11,17 @@ datasource db {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  name           String
-  email          String   @unique
-  avatar         String?
-  status         String   @default("active") // active, paused
-  timezone       String?  @default("America/New_York")
-  dailyCapacity  Int?     // max leads per day
-  weeklyCapacity Int?     // max leads per week
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  email            String   @unique
+  avatar           String?
+  status           String   @default("active") // active, paused
+  timezone         String?  @default("America/New_York")
+  dailyCapacity    Int?     // max leads per day
+  weeklyCapacity   Int?     // max leads per week
+  salesforceUserId String?  // Linked Salesforce User ID for owner assignment
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
   groupMemberships    GroupMember[]

@@ -91,6 +91,7 @@ export function ContactCard({
   showAssignments,
   actions,
   onAction,
+  onClose,
 }: {
   contact: ContactData;
   isNew?: boolean;
@@ -98,15 +99,24 @@ export function ContactCard({
   showAssignments?: boolean;
   actions?: string[];
   onAction?: (action: string, data: any) => void;
+  onClose?: () => void;
 }) {
   const router = useRouter();
 
+  const handleClick = () => {
+    router.push(`/contacts/${contact.id}`);
+    onClose?.();
+  };
+
   return (
-    <Card className={`${isNew ? "border-green-500 bg-green-500/5" : ""}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Avatar className="h-10 w-10 border">
-            <AvatarFallback className="text-sm bg-muted">
+    <Card
+      className={`${isNew ? "border-green-500 bg-green-500/5" : ""} cursor-pointer hover:bg-muted/50 transition-colors`}
+      onClick={handleClick}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8 border shrink-0">
+            <AvatarFallback className="text-xs bg-muted">
               {contact.name
                 .split(" ")
                 .map((n) => n[0])
@@ -118,85 +128,23 @@ export function ContactCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h4 className="font-semibold truncate">{contact.name}</h4>
+              <h4 className="text-sm font-medium truncate">{contact.name}</h4>
               {isNew && (
-                <Badge variant="outline" className="text-green-600 border-green-600">
+                <Badge variant="outline" className="text-green-600 border-green-600 text-[10px] px-1">
                   New
                 </Badge>
               )}
             </div>
-
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
-              <Mail className="h-3 w-3" />
-              <span className="truncate">{contact.email}</span>
-            </div>
-
-            {contact.company && (
-              <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
-                <Building2 className="h-3 w-3" />
-                <span>{contact.company}</span>
-              </div>
-            )}
-
-            {expanded && (
-              <div className="mt-3 space-y-1 text-sm text-muted-foreground">
-                {contact.phone && (
-                  <div className="flex items-center gap-1">
-                    <Phone className="h-3 w-3" />
-                    <span>{contact.phone}</span>
-                  </div>
-                )}
-                {contact.leadSource && (
-                  <div className="flex items-center gap-1">
-                    <Briefcase className="h-3 w-3" />
-                    <span>Source: {contact.leadSource}</span>
-                  </div>
-                )}
-                {(contact.country || contact.state) && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    <span>
-                      {[contact.state, contact.country].filter(Boolean).join(", ")}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {showAssignments && contact.assignments && contact.assignments.length > 0 && (
-              <div className="mt-3 p-2 bg-muted/50 rounded-md">
-                <p className="text-xs font-medium mb-1">Assigned to:</p>
-                {contact.assignments.map((a, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <User className="h-3 w-3" />
-                    <span>{a.user?.name}</span>
-                    {a.group && (
-                      <>
-                        <span className="text-muted-foreground">via</span>
-                        <Badge variant="outline" className="text-xs">
-                          {a.group.name}
-                        </Badge>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground truncate">{contact.email}</p>
           </div>
 
-          {actions && actions.length > 0 && (
-            <div className="flex gap-1">
-              {actions.includes("view") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push(`/contacts?id=${contact.id}`)}
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
+          {contact.company && (
+            <span className="text-xs text-muted-foreground truncate max-w-[100px] hidden sm:block">
+              {contact.company}
+            </span>
           )}
+
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         </div>
       </CardContent>
     </Card>
@@ -209,55 +157,50 @@ export function ContactList({
   filter,
   actions,
   onAction,
+  onClose,
 }: {
   contacts: ContactData[];
   total: number;
   filter?: string;
   actions?: string[];
   onAction?: (action: string, data: any) => void;
+  onClose?: () => void;
 }) {
   const router = useRouter();
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">
-            {contacts.length} of {total} contacts
-          </span>
-          {filter && filter !== "all" && (
-            <Badge variant="secondary" className="text-xs">
-              {filter}
-            </Badge>
-          )}
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push("/contacts")}
-        >
-          View all
-          <ChevronRight className="h-3 w-3 ml-1" />
-        </Button>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{contacts.length} of {total} contacts</span>
+        {filter && filter !== "all" && (
+          <Badge variant="secondary" className="text-[10px]">
+            {filter}
+          </Badge>
+        )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {contacts.map((contact) => (
           <ContactCard
             key={contact.id}
             contact={contact}
-            showAssignments
             actions={actions}
             onAction={onAction}
+            onClose={onClose}
           />
         ))}
       </div>
 
       {total > contacts.length && (
-        <p className="text-xs text-muted-foreground text-center">
+        <button
+          onClick={() => {
+            router.push("/contacts");
+            onClose?.();
+          }}
+          className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-2 transition-colors"
+        >
           +{total - contacts.length} more contacts
-        </p>
+        </button>
       )}
     </div>
   );
@@ -271,21 +214,31 @@ export function UserCard({
   showStats,
   actions,
   onAction,
+  onClose,
 }: {
   user: UserData;
   isNew?: boolean;
   showStats?: boolean;
   actions?: string[];
   onAction?: (action: string, data: any) => void;
+  onClose?: () => void;
 }) {
   const router = useRouter();
 
+  const handleClick = () => {
+    router.push(`/users`);
+    onClose?.();
+  };
+
   return (
-    <Card className={`${isNew ? "border-green-500 bg-green-500/5" : ""}`}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Avatar className="h-10 w-10 border">
-            <AvatarFallback className="text-sm bg-muted">
+    <Card
+      className={`${isNew ? "border-green-500 bg-green-500/5" : ""} cursor-pointer hover:bg-muted/50 transition-colors`}
+      onClick={handleClick}
+    >
+      <CardContent className="p-3">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8 border shrink-0">
+            <AvatarFallback className="text-xs bg-muted">
               {user.name
                 .split(" ")
                 .map((n) => n[0])
@@ -297,59 +250,24 @@ export function UserCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h4 className="font-semibold truncate">{user.name}</h4>
-              {isNew && (
-                <Badge variant="outline" className="text-green-600 border-green-600">
-                  New
-                </Badge>
-              )}
+              <h4 className="text-sm font-medium truncate">{user.name}</h4>
               {!user.isActive && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-[10px] px-1">
                   Inactive
                 </Badge>
               )}
             </div>
-
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
-              <Mail className="h-3 w-3" />
-              <span className="truncate">{user.email}</span>
-            </div>
-
-            {showStats && (
-              <div className="flex items-center gap-4 mt-2 text-sm">
-                <div className="flex items-center gap-1">
-                  <BarChart3 className="h-3 w-3 text-muted-foreground" />
-                  <span>{user.totalAssignments || 0} total</span>
-                </div>
-                {user.weeklyAssignments !== undefined && (
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-muted-foreground" />
-                    <span>{user.weeklyAssignments} this week</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {user.memberships && user.memberships.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {user.memberships.map((m, i) => (
-                  <Badge key={i} variant="outline" className="text-xs">
-                    {m.group.name}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
 
-          {actions && actions.includes("view") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push(`/users?id=${user.id}`)}
-            >
-              <ExternalLink className="h-3 w-3" />
-            </Button>
+          {showStats && (
+            <div className="text-right text-xs text-muted-foreground shrink-0">
+              <div>{user.totalAssignments || 0} total</div>
+              <div>{user.weeklyAssignments || 0} this week</div>
+            </div>
           )}
+
+          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
         </div>
       </CardContent>
     </Card>
@@ -361,28 +279,21 @@ export function UserList({
   showStats,
   actions,
   onAction,
+  onClose,
 }: {
   users: UserData[];
   showStats?: boolean;
   actions?: string[];
   onAction?: (action: string, data: any) => void;
+  onClose?: () => void;
 }) {
-  const router = useRouter();
-
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{users.length} team members</span>
-        </div>
-        <Button variant="ghost" size="sm" onClick={() => router.push("/users")}>
-          View all
-          <ChevronRight className="h-3 w-3 ml-1" />
-        </Button>
+    <div className="space-y-2">
+      <div className="text-xs text-muted-foreground">
+        {users.length} team members
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {users.map((user) => (
           <UserCard
             key={user.id}
@@ -390,6 +301,7 @@ export function UserList({
             showStats={showStats}
             actions={actions}
             onAction={onAction}
+            onClose={onClose}
           />
         ))}
       </div>
@@ -936,19 +848,19 @@ export function ConfirmationPrompt({
 export function renderToolComponent(
   component: { type: string; props: any },
   onAction?: (action: string, data: any) => void,
-  onNavigate?: () => void
+  onClose?: () => void
 ) {
   const { type, props } = component;
 
   switch (type) {
     case "contactCard":
-      return <ContactCard {...props} onAction={onAction} />;
+      return <ContactCard {...props} onAction={onAction} onClose={onClose} />;
     case "contactList":
-      return <ContactList {...props} onAction={onAction} />;
+      return <ContactList {...props} onAction={onAction} onClose={onClose} />;
     case "userCard":
-      return <UserCard {...props} onAction={onAction} />;
+      return <UserCard {...props} onAction={onAction} onClose={onClose} />;
     case "userList":
-      return <UserList {...props} onAction={onAction} />;
+      return <UserList {...props} onAction={onAction} onClose={onClose} />;
     case "groupCard":
       return <GroupCard {...props} onAction={onAction} />;
     case "groupList":
@@ -966,7 +878,7 @@ export function renderToolComponent(
     case "notification":
       return <Notification {...props} />;
     case "navigation":
-      return <NavigationButton {...props} onNavigate={onNavigate} />;
+      return <NavigationButton {...props} onNavigate={onClose} />;
     case "confirmation":
       return <ConfirmationPrompt {...props} onAction={onAction} />;
     default:

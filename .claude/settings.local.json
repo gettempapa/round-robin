@@ -4,7 +4,9 @@
       "Bash(cat:*)",
       "Bash(npx prisma generate:*)",
       "Bash(npx prettier:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Salesforce integration and enhanced AI chat features\n\n- Add Salesforce OAuth flow and API integration\n- Implement CRUD operations for Salesforce records\n- Enhance contacts page with Salesforce sync capabilities\n- Add AI command chat component\n- Update AI tool handlers for Salesforce operations\n- Extend Prisma schema for Salesforce data\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
