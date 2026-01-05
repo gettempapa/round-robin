@@ -630,65 +630,64 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
   };
 
   // ============ COLLAPSED VIEW ============
-  // Matches AIHeader styling for consistency
+  // Same styling as the expanded chat's input area
   if (isCollapsed) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-16 items-center gap-4 px-8">
-          {/* AI Input - matches AIHeader */}
-          <div className="flex-1 max-w-3xl">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
+      <div className="fixed top-0 left-0 right-0 z-50 border-b bg-background shadow-sm">
+        <div className="max-w-4xl mx-auto p-4">
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (input.trim()) {
+                      const msg = input;
+                      setInput("");
+                      handleCollapsedSend(msg);
+                    } else {
+                      setIsCollapsed(false);
+                    }
+                  }
+                }}
+                placeholder="Ask me to do something... (@ for users, # for groups)"
+                disabled={isProcessing}
+                rows={1}
+                className="w-full min-h-[44px] max-h-32 rounded-lg border border-input bg-background px-4 py-3 pr-12 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                style={{ height: "auto" }}
+              />
+              <div className="absolute right-3 bottom-2.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">Enter</kbd>
+              </div>
+            </div>
+            <Button
+              onClick={() => {
                 if (input.trim()) {
                   const msg = input;
                   setInput("");
                   handleCollapsedSend(msg);
+                } else {
+                  setIsCollapsed(false);
                 }
               }}
-              className="relative"
+              disabled={isProcessing}
+              className="h-11 px-4"
             >
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-blue-600 to-blue-600">
-                  <Sparkles className="h-3.5 w-3.5 text-white" />
-                </div>
-                <span className="text-sm font-medium text-blue-600">AI</span>
-              </div>
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isProcessing}
-                placeholder={isProcessing ? "AI is processing..." : "Ask me anything • Create contacts • Analyze performance • Route leads..."}
-                className="h-11 pl-20 pr-24 text-sm border-2 border-blue-500/20 focus:border-blue-500/50 bg-background/50 font-medium placeholder:text-muted-foreground/50 focus:placeholder:text-muted-foreground/30 disabled:opacity-70 relative z-10"
-              />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
-                <Badge variant="secondary" className="text-xs font-mono bg-muted border-0 hidden sm:flex">
-                  ⌘K
-                </Badge>
-                <button
-                  type="submit"
-                  disabled={!input.trim() || isProcessing}
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
-                >
-                  {isProcessing ? (
-                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Right side - Status indicators + expand button */}
-          <div className="flex items-center gap-3">
-            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">AI Active</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setIsCollapsed(false)} className="h-9">
-              <MessageSquare className="h-3.5 w-3.5 mr-1" />
-              Open Chat
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsCollapsed(false)}
+              className="h-11 px-4"
+            >
+              <ChevronDown className="h-4 w-4 mr-1" />
+              Expand
             </Button>
           </div>
         </div>
