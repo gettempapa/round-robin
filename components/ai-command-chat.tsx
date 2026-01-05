@@ -221,6 +221,18 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
+  // Handle initial message from header input
+  const initialMessageHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isOpen || !initialMessage) return;
+    if (initialMessageHandledRef.current === initialMessage) return;
+
+    initialMessageHandledRef.current = initialMessage;
+
+    // Send the initial message
+    createNewConversation(initialMessage);
+  }, [isOpen, initialMessage]);
+
   // Reset to expanded view and load data when chat opens
   useEffect(() => {
     if (!isOpen) return;
