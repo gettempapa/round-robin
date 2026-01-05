@@ -7,8 +7,7 @@ import {
   Loader2,
   X,
   Bot,
-  PanelRightClose,
-  PanelRightOpen,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,7 +51,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [position, setPosition] = useState<"center" | "side">("center");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -66,9 +65,16 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
     if (!isOpen || !initialMessage) return;
     if (initialMessageHandledRef.current === initialMessage) return;
     initialMessageHandledRef.current = initialMessage;
-    setIsMinimized(false);
+    setPosition("center");
     createNewConversation(initialMessage);
   }, [isOpen, initialMessage]);
+
+  // Reset to center when opening fresh
+  useEffect(() => {
+    if (isOpen && !initialMessage) {
+      setPosition("center");
+    }
+  }, [isOpen]);
 
   // Load conversations from localStorage once
   const hasLoadedRef = useRef(false);
@@ -116,10 +122,10 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
   // Focus input when opened
   useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen, isMinimized]);
+  }, [isOpen]);
 
   const createNewConversation = async (firstMessage?: string) => {
     const newConv: Conversation = {
@@ -185,13 +191,16 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
       const data = await response.json();
 
-      // Handle navigation if the AI wants to navigate
+      // Handle navigation - slide to side, don't close
       if (data.toolResults) {
         for (const result of data.toolResults) {
           if (result.uiComponent?.type === "navigation" && result.uiComponent?.props?.path) {
-            router.push(result.uiComponent.props.path);
-            // Don't close, just minimize to show content
-            setIsMinimized(true);
+            // Animate to side position
+            setPosition("side");
+            // Small delay to let animation start, then navigate
+            setTimeout(() => {
+              router.push(result.uiComponent.props.path);
+            }, 150);
           }
         }
       }
@@ -239,137 +248,144 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
   if (!isOpen) return null;
 
-  // Minimized state - just a small tab on the right
-  if (isMinimized) {
-    return (
-      <button
-        onClick={() => setIsMinimized(false)}
-        className="fixed right-0 top-1/2 -translate-y-1/2 z-50 bg-foreground text-background p-3 rounded-l-lg shadow-lg hover:bg-foreground/90 transition-all"
-      >
-        <PanelRightOpen className="h-5 w-5" />
-      </button>
-    );
-  }
+  const isSide = position === "side";
 
-  // Full side panel
   return (
-    <div className="fixed right-0 top-0 bottom-0 z-50 w-96 bg-background border-l shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-foreground flex items-center justify-center">
-            <Bot className="h-4 w-4 text-background" />
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold">RoundRobin AI</h2>
-            <p className="text-[10px] text-muted-foreground">Ask me to do anything</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setIsMinimized(true)} title="Minimize">
-            <PanelRightClose className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} title="Close">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+    <>
+      {/* Backdrop - only when centered */}
+      {!isSide && (
+        <div
+          className="fixed inset-0 z-40 bg-black/20 transition-opacity duration-300"
+          onClick={onClose}
+        />
+      )}
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {!activeConversation || activeConversation.messages.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <p className="text-sm">What would you like to do?</p>
+      {/* Chat panel */}
+      <div
+        className={`fixed z-50 bg-background border shadow-2xl flex flex-col transition-all duration-300 ease-out ${
+          isSide
+            ? "right-4 top-20 bottom-4 w-80 rounded-xl"
+            : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl max-h-[80vh] rounded-xl"
+        }`}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30 shrink-0 rounded-t-xl">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-full bg-foreground flex items-center justify-center">
+              <Bot className="h-3.5 w-3.5 text-background" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold">RoundRobin AI</h2>
+            </div>
           </div>
-        ) : (
-          activeConversation.messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              {message.role === "assistant" && (
-                <div className="h-6 w-6 rounded-full bg-foreground flex items-center justify-center shrink-0">
-                  <Bot className="h-3 w-3 text-background" />
-                </div>
-              )}
-              <div className={`flex flex-col gap-2 ${message.role === "user" ? "items-end max-w-[85%]" : "max-w-[90%]"}`}>
-                {message.content && (
-                  <div className={`rounded-lg px-3 py-2 ${
-                    message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
-                  }`}>
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <div className="flex items-center gap-1">
+            {isSide && (
+              <Button variant="ghost" size="icon" onClick={() => setPosition("center")} title="Center">
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose} title="Close">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {!activeConversation || activeConversation.messages.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm">What would you like to do?</p>
+            </div>
+          ) : (
+            activeConversation.messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-2 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                {message.role === "assistant" && (
+                  <div className="h-6 w-6 rounded-full bg-foreground flex items-center justify-center shrink-0">
+                    <Bot className="h-3 w-3 text-background" />
                   </div>
                 )}
+                <div className={`flex flex-col gap-2 ${message.role === "user" ? "items-end max-w-[85%]" : "max-w-[90%]"}`}>
+                  {message.content && (
+                    <div className={`rounded-lg px-3 py-2 ${
+                      message.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}>
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  )}
 
-                {/* Render tool results as UI components */}
-                {message.toolResults?.map((result, idx) => {
-                  if (result.error) {
-                    return (
-                      <div key={idx} className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                        {result.error}
-                      </div>
-                    );
-                  }
-                  if (result.uiComponent && result.uiComponent.type !== "navigation") {
-                    return (
-                      <div key={idx} className="w-full">
-                        {renderToolComponent(result.uiComponent, undefined, onClose)}
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
+                  {/* Render tool results as UI components */}
+                  {message.toolResults?.map((result, idx) => {
+                    if (result.error) {
+                      return (
+                        <div key={idx} className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                          {result.error}
+                        </div>
+                      );
+                    }
+                    if (result.uiComponent && result.uiComponent.type !== "navigation") {
+                      return (
+                        <div key={idx} className="w-full">
+                          {renderToolComponent(result.uiComponent, undefined, onClose)}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+                {message.role === "user" && (
+                  <Avatar className="h-6 w-6 border shrink-0">
+                    <AvatarFallback className="text-[10px]">You</AvatarFallback>
+                  </Avatar>
+                )}
               </div>
-              {message.role === "user" && (
-                <Avatar className="h-6 w-6 border shrink-0">
-                  <AvatarFallback className="text-[10px]">You</AvatarFallback>
-                </Avatar>
+            ))
+          )}
+
+          {isProcessing && (
+            <div className="flex gap-2">
+              <div className="h-6 w-6 rounded-full bg-foreground flex items-center justify-center shrink-0">
+                <Bot className="h-3 w-3 text-background" />
+              </div>
+              <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span className="text-sm text-muted-foreground">Thinking...</span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t p-3 shrink-0 rounded-b-xl">
+          <div className="flex gap-2">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Tell me what to do..."
+              disabled={isProcessing}
+              rows={1}
+              className="flex-1 min-h-[40px] max-h-24 rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button
+              onClick={() => input.trim() && sendMessage(input)}
+              disabled={!input.trim() || isProcessing}
+              size="icon"
+              className="h-10 w-10 shrink-0"
+            >
+              {isProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
               )}
-            </div>
-          ))
-        )}
-
-        {isProcessing && (
-          <div className="flex gap-3">
-            <div className="h-6 w-6 rounded-full bg-foreground flex items-center justify-center shrink-0">
-              <Bot className="h-3 w-3 text-background" />
-            </div>
-            <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-2">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              <span className="text-sm text-muted-foreground">Thinking...</span>
-            </div>
+            </Button>
           </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="border-t p-3 shrink-0">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Tell me what to do..."
-            disabled={isProcessing}
-            rows={1}
-            className="flex-1 min-h-[40px] max-h-24 rounded-lg border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-          <Button
-            onClick={() => input.trim() && sendMessage(input)}
-            disabled={!input.trim() || isProcessing}
-            size="icon"
-            className="h-10 w-10 shrink-0"
-          >
-            {isProcessing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
