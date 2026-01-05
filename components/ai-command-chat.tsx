@@ -32,6 +32,7 @@ import {
   Command,
   History,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -617,83 +618,66 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
   };
 
   // ============ COLLAPSED VIEW ============
+  // Matches AIHeader styling for consistency
   if (isCollapsed) {
-    const hasExistingChat = conversations.length > 0 && activeConversationId;
-
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur-sm shadow-sm animate-in slide-in-from-top-2 duration-200">
-        <div className="container mx-auto px-4 py-2">
-          <div className="flex items-center gap-3">
-            {/* Click to expand existing chat */}
-            <button
-              onClick={() => setIsCollapsed(false)}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+      <div className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex h-16 items-center gap-4 px-8">
+          {/* AI Input - matches AIHeader */}
+          <div className="flex-1 max-w-3xl">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (input.trim()) {
+                  const msg = input;
+                  setInput("");
+                  handleCollapsedSend(msg);
+                }
+              }}
+              className="relative"
             >
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-600 to-blue-600 flex items-center justify-center">
-                <Bot className="h-3.5 w-3.5 text-white" />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-blue-600 to-blue-600">
+                  <Sparkles className="h-3.5 w-3.5 text-white" />
+                </div>
+                <span className="text-sm font-medium text-blue-600">AI</span>
               </div>
-              {hasExistingChat && (
-                <span className="text-xs text-muted-foreground hidden sm:inline">
-                  {activeConversation?.title?.slice(0, 20)}...
-                </span>
-              )}
-            </button>
-
-            <div className="flex-1 flex items-center gap-2 max-w-2xl relative">
-              <div className="relative flex-1">
-                <Command className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (input.trim()) {
-                        const msg = input;
-                        setInput("");
-                        handleCollapsedSend(msg);
-                      } else {
-                        // Just expand if no input
-                        setIsCollapsed(false);
-                      }
-                    }
-                  }}
-                  onFocus={() => {
-                    // If clicking into input with existing chat, could expand first
-                    // But let's keep it simple - they can type and send
-                  }}
-                  placeholder={hasExistingChat ? "Continue chat or start new..." : "Start a new chat..."}
-                  disabled={isProcessing}
-                  className="w-full h-9 pl-10 pr-4 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <Button
-                onClick={() => {
-                  if (input.trim()) {
-                    const msg = input;
-                    setInput("");
-                    handleCollapsedSend(msg);
-                  } else {
-                    setIsCollapsed(false);
-                  }
-                }}
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                 disabled={isProcessing}
-                size="sm"
-                className="h-9 px-3"
-              >
-                {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
+                placeholder={isProcessing ? "AI is processing..." : "Ask me anything • Create contacts • Analyze performance • Route leads..."}
+                className="h-11 pl-20 pr-24 text-sm border-2 border-blue-500/20 focus:border-blue-500/50 bg-background/50 font-medium placeholder:text-muted-foreground/50 focus:placeholder:text-muted-foreground/30 disabled:opacity-70 relative z-10"
+              />
+              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
+                <Badge variant="secondary" className="text-xs font-mono bg-muted border-0 hidden sm:flex">
+                  ⌘K
+                </Badge>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isProcessing}
+                  className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+                >
+                  {isProcessing ? (
+                    <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
 
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={() => createNewConversation()} className="h-9">
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                New
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => setIsCollapsed(false)} className="h-9">
-                {hasExistingChat ? "Open" : "Expand"}
-              </Button>
+          {/* Right side - Status indicators + expand button */}
+          <div className="flex items-center gap-3">
+            <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-md bg-emerald-500/10 border border-emerald-500/20">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">AI Active</span>
             </div>
+            <Button variant="ghost" size="sm" onClick={() => setIsCollapsed(false)} className="h-9">
+              <MessageSquare className="h-3.5 w-3.5 mr-1" />
+              Open Chat
+            </Button>
           </div>
         </div>
       </div>
