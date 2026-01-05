@@ -626,7 +626,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
               onClick={() => setIsCollapsed(false)}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-600 to-blue-600 flex items-center justify-center">
                 <Bot className="h-3.5 w-3.5 text-white" />
               </div>
               {hasExistingChat && (
@@ -1168,8 +1168,8 @@ function RulePreview({ data }: { data: any }) {
     <Card>
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
-            <Filter className="h-5 w-5 text-violet-600" />
+          <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+            <Filter className="h-5 w-5 text-blue-600" />
           </div>
           <div>
             <h4 className="font-medium text-sm">{data.name || "New Rule"}</h4>

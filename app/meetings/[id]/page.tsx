@@ -306,7 +306,7 @@ export default function MeetingDetailPage({
                       href={meeting.recordingLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-purple-600 hover:underline flex items-center gap-1"
+                      className="text-blue-600 hover:underline flex items-center gap-1"
                     >
                       View Recording
                       <ExternalLink className="h-3 w-3" />

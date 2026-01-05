@@ -42,7 +42,7 @@ const eventIcons: Record<string, React.ReactNode> = {
 const eventColors: Record<string, string> = {
   created: "bg-blue-100 text-blue-600",
   status_changed: "bg-amber-100 text-amber-600",
-  rescheduled: "bg-purple-100 text-purple-600",
+  rescheduled: "bg-blue-100 text-blue-600",
   reminder_sent: "bg-green-100 text-green-600",
   reminder: "bg-gray-100 text-gray-600",
   note_added: "bg-indigo-100 text-indigo-600",

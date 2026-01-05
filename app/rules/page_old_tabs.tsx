@@ -89,7 +89,7 @@ const TRIGGER_TYPES = [
     label: "Form Submission",
     icon: FileText,
     description: "When a form is submitted",
-    color: "violet" // purple for forms
+    color: "blue" // blue for forms
   },
   {
     value: "api_webhook",
@@ -405,9 +405,9 @@ export default function RulesPage() {
               variant="outline"
               size="sm"
               onClick={() => setAiWizardOpen(true)}
-              className="border border-purple-500/30 hover:border-purple-500/50"
+              className="border border-blue-500/30 hover:border-blue-500/50"
             >
-              <Sparkles className="mr-2 h-3.5 w-3.5 text-purple-500" />
+              <Sparkles className="mr-2 h-3.5 w-3.5 text-blue-500" />
               AI Wizard
             </Button>
             <Dialog open={ruleDialogOpen} onOpenChange={(o) => { setRuleDialogOpen(o); if (!o) resetRuleForm(); }}>
@@ -616,7 +616,7 @@ export default function RulesPage() {
                       isConnected
                         ? colorClass === 'emerald' ? 'border-emerald-500/30 from-emerald-500/10 to-card' :
                           colorClass === 'blue' ? 'border-blue-500/30 from-blue-500/10 to-card' :
-                          colorClass === 'violet' ? 'border-violet-500/30 from-violet-500/10 to-card' :
+                          colorClass === 'blue' ? 'border-blue-500/30 from-blue-500/10 to-card' :
                           colorClass === 'orange' ? 'border-orange-500/30 from-orange-500/10 to-card' :
                           'border-amber-500/30 from-amber-500/10 to-card'
                         : 'border-muted/20 from-card to-muted/10'
@@ -627,7 +627,7 @@ export default function RulesPage() {
                         isConnected
                           ? colorClass === 'emerald' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' :
                             colorClass === 'blue' ? 'bg-blue-500/20 border-blue-500/30 text-blue-600 dark:text-blue-400' :
-                            colorClass === 'violet' ? 'bg-violet-500/20 border-violet-500/30 text-violet-600 dark:text-violet-400' :
+                            colorClass === 'blue' ? 'bg-blue-500/20 border-blue-500/30 text-blue-600 dark:text-blue-400' :
                             colorClass === 'orange' ? 'bg-orange-500/20 border-orange-500/30 text-orange-600 dark:text-orange-400' :
                             'bg-amber-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400'
                           : 'bg-muted/20 border-muted/30 text-muted-foreground'
@@ -735,7 +735,7 @@ export default function RulesPage() {
                               className={`p-2 border rounded-lg bg-gradient-to-br text-center ${
                                 colorClass === 'emerald' ? 'border-emerald-500/30 from-emerald-500/20 to-background' :
                                 colorClass === 'blue' ? 'border-blue-500/30 from-blue-500/20 to-background' :
-                                colorClass === 'violet' ? 'border-violet-500/30 from-violet-500/20 to-background' :
+                                colorClass === 'blue' ? 'border-blue-500/30 from-blue-500/20 to-background' :
                                 colorClass === 'orange' ? 'border-orange-500/30 from-orange-500/20 to-background' :
                                 'border-amber-500/30 from-amber-500/20 to-background'
                               }`}
@@ -743,7 +743,7 @@ export default function RulesPage() {
                               <div className={`flex h-8 w-8 mx-auto items-center justify-center rounded border mb-1 ${
                                 colorClass === 'emerald' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-600 dark:text-emerald-400' :
                                 colorClass === 'blue' ? 'bg-blue-500/20 border-blue-500/30 text-blue-600 dark:text-blue-400' :
-                                colorClass === 'violet' ? 'bg-violet-500/20 border-violet-500/30 text-violet-600 dark:text-violet-400' :
+                                colorClass === 'blue' ? 'bg-blue-500/20 border-blue-500/30 text-blue-600 dark:text-blue-400' :
                                 colorClass === 'orange' ? 'bg-orange-500/20 border-orange-500/30 text-orange-600 dark:text-orange-400' :
                                 'bg-amber-500/20 border-amber-500/30 text-amber-600 dark:text-amber-400'
                               }`}>

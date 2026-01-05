@@ -61,10 +61,10 @@ export function AIHeader() {
           <div className="flex-1 max-w-3xl">
             <form onSubmit={handleSubmit} className="relative">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
-                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-violet-600 to-indigo-600">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-blue-600 to-blue-600">
                   <Sparkles className="h-3.5 w-3.5 text-white" />
                 </div>
-                <span className="text-sm font-medium text-violet-600">AI</span>
+                <span className="text-sm font-medium text-blue-600">AI</span>
               </div>
               <Input
                 ref={inputRef}
@@ -74,7 +74,7 @@ export function AIHeader() {
                 onBlur={() => setTimeout(() => setFocused(false), 200)}
                 disabled={isProcessing}
                 placeholder={isProcessing ? "AI is processing..." : "Ask me anything • Create contacts • Analyze performance • Route leads • Find duplicates..."}
-                className="h-11 pl-20 pr-24 text-sm border-2 border-violet-500/20 focus:border-violet-500/50 bg-background/50 font-medium placeholder:text-muted-foreground/50 focus:placeholder:text-muted-foreground/30 disabled:opacity-70 relative z-10"
+                className="h-11 pl-20 pr-24 text-sm border-2 border-blue-500/20 focus:border-blue-500/50 bg-background/50 font-medium placeholder:text-muted-foreground/50 focus:placeholder:text-muted-foreground/30 disabled:opacity-70 relative z-10"
               />
               <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
                 <Badge variant="secondary" className="text-xs font-mono bg-muted border-0 hidden sm:flex">
@@ -83,7 +83,7 @@ export function AIHeader() {
                 <button
                   type="submit"
                   disabled={!query.trim() || isProcessing}
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-violet-700 transition-colors"
+                  className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
                 >
                   {isProcessing ? (
                     <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -112,16 +112,16 @@ export function AIHeader() {
       {/* Suggestions dropdown - Fixed positioned to be above everything */}
       {focused && !query && (
         <div
-          className="fixed z-[300] rounded-lg border-2 border-violet-500/20 bg-background shadow-2xl"
+          className="fixed z-[300] rounded-lg border-2 border-blue-500/20 bg-background shadow-2xl"
           style={{
             top: `${dropdownPosition.top + 8}px`,
             left: `${dropdownPosition.left}px`,
             width: `${dropdownPosition.width}px`,
           }}
         >
-          <div className="p-3 border-b border-violet-500/10">
+          <div className="p-3 border-b border-blue-500/10">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Zap className="h-3 w-3 text-violet-500" />
+              <Zap className="h-3 w-3 text-blue-500" />
               Quick Actions
             </div>
           </div>
@@ -134,17 +134,17 @@ export function AIHeader() {
                   setFocused(false);
                   executeQuery(suggestion);
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-violet-950/10 text-left group transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-blue-950/10 text-left group transition-colors"
               >
                 <span className="text-sm font-medium">{suggestion}</span>
-                <Sparkles className="h-3.5 w-3.5 text-violet-500 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
+                <Sparkles className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
               </button>
             ))}
           </div>
-          <div className="p-3 border-t border-violet-500/10 bg-violet-950/5">
+          <div className="p-3 border-t border-blue-500/10 bg-blue-950/5">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Powered by Claude AI • Natural language processing</span>
-              <Badge variant="secondary" className="bg-violet-950/30 text-violet-400 border-violet-500/30 text-xs">
+              <Badge variant="secondary" className="bg-blue-950/30 text-blue-400 border-blue-500/30 text-xs">
                 Always learning
               </Badge>
             </div>

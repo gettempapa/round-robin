@@ -13,7 +13,9 @@
       "Bash(npx prisma migrate:*)",
       "Bash(curl:*)",
       "Bash(npx prisma db push:*)",
-      "Bash(printf:*)"
+      "Bash(printf:*)",
+      "Bash(find:*)",
+      "Bash({} ;)"
     ]
   }
 }

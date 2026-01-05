@@ -299,7 +299,7 @@ export default function SalesforceOpportunitiesPage() {
                     <TableRow key={opp.Id} className="hover:bg-muted/30">
                       <TableCell className="font-medium">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-violet-500/10 text-violet-600 shrink-0">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-500/10 text-blue-600 shrink-0">
                             <DollarSign className="h-3.5 w-3.5" />
                           </div>
                           <span className="text-sm">{opp.Name}</span>

@@ -309,7 +309,7 @@ export function AIChat({ isOpen, onClose, initialMessage }: AIChatProps) {
           <div className="flex items-center gap-3">
             {/* Agent indicator */}
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-600 to-blue-600 flex items-center justify-center">
                 <Bot className="h-3.5 w-3.5 text-white" />
               </div>
             </div>
@@ -404,7 +404,7 @@ export function AIChat({ isOpen, onClose, initialMessage }: AIChatProps) {
             <div className="flex items-center gap-3">
               {/* Agent indicator */}
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <Bot className="h-4 w-4 text-white" />
                 </div>
                 <div>
@@ -468,7 +468,7 @@ export function AIChat({ isOpen, onClose, initialMessage }: AIChatProps) {
             {!activeConversation || activeConversation.messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-6">
                 <div className="relative">
-                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                  <div className="h-20 w-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                     <Bot className="h-10 w-10 text-white" />
                   </div>
                   <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
@@ -553,7 +553,7 @@ export function AIChat({ isOpen, onClose, initialMessage }: AIChatProps) {
                     }`}
                   >
                     {message.role === "assistant" && (
-                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
+                      <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
                         <Bot className="h-4 w-4 text-white" />
                       </div>
                     )}
@@ -594,7 +594,7 @@ export function AIChat({ isOpen, onClose, initialMessage }: AIChatProps) {
 
                 {isProcessing && (
                   <div className="flex gap-4 animate-in fade-in-0">
-                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
                       <Bot className="h-4 w-4 text-white" />
                     </div>
                     <div className="bg-muted rounded-lg px-4 py-3 flex items-center gap-2">

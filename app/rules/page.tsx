@@ -98,7 +98,7 @@ type Group = {
 const TRIGGER_TYPES = [
   { value: "contact_created", label: "New Contact", icon: UserPlus, color: "emerald", description: "Triggers when a new contact is created" },
   { value: "contact_updated", label: "Contact Updated", icon: RefreshCw, color: "blue", description: "Triggers when contact data changes" },
-  { value: "form_submitted", label: "Form Submission", icon: FileText, color: "violet", description: "Triggers on form submissions" },
+  { value: "form_submitted", label: "Form Submission", icon: FileText, color: "blue", description: "Triggers on form submissions" },
   { value: "api_webhook", label: "API / Webhook", icon: Webhook, color: "orange", description: "Triggers from external API calls" },
   { value: "manual", label: "Manual Assignment", icon: Hand, color: "amber", description: "Triggers on manual lead routing" },
 ];
@@ -439,9 +439,9 @@ function RulesPageContent() {
               variant="outline"
               size="sm"
               onClick={() => setAiWizardOpen(true)}
-              className="border border-purple-500/30 hover:border-purple-500/50"
+              className="border border-blue-500/30 hover:border-blue-500/50"
             >
-              <Sparkles className="mr-2 h-3.5 w-3.5 text-purple-500" />
+              <Sparkles className="mr-2 h-3.5 w-3.5 text-blue-500" />
               AI Wizard
             </Button>
             <Dialog open={ruleDialogOpen} onOpenChange={(o) => { setRuleDialogOpen(o); if (!o) resetRuleForm(); }}>
@@ -1019,7 +1019,7 @@ function RulesPageContent() {
                       <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${
                         trigger.color === 'emerald' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400' :
                         trigger.color === 'blue' ? 'bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400' :
-                        trigger.color === 'violet' ? 'bg-violet-500/20 border-violet-500/50 text-violet-600 dark:text-violet-400' :
+                        trigger.color === 'blue' ? 'bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400' :
                         trigger.color === 'orange' ? 'bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400' :
                         'bg-amber-500/20 border-amber-500/50 text-amber-600 dark:text-amber-400'
                       }`}>
