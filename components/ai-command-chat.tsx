@@ -590,17 +590,46 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
   if (!isOpen) return null;
 
+  // Handle sending message from collapsed bar
+  const handleCollapsedSend = async (message: string) => {
+    if (!message.trim() || isProcessing) return;
+
+    setIsCollapsed(false);
+
+    // Small delay to let the expanded view render
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // If no active conversation, create one
+    if (!activeConversationId || conversations.length === 0) {
+      await createNewConversation(message);
+    } else {
+      // Add to existing conversation
+      await handleSendMessage(message, activeConversationId);
+    }
+  };
+
   // ============ COLLAPSED VIEW ============
   if (isCollapsed) {
+    const hasExistingChat = conversations.length > 0 && activeConversationId;
+
     return (
       <div className="fixed top-0 left-0 right-0 z-50 border-b bg-background/95 backdrop-blur-sm shadow-sm animate-in slide-in-from-top-2 duration-200">
         <div className="container mx-auto px-4 py-2">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            {/* Click to expand existing chat */}
+            <button
+              onClick={() => setIsCollapsed(false)}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
               <div className="h-7 w-7 rounded-full bg-foreground flex items-center justify-center">
                 <Bot className="h-3.5 w-3.5 text-background" />
               </div>
-            </div>
+              {hasExistingChat && (
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  {activeConversation?.title?.slice(0, 20)}...
+                </span>
+              )}
+            </button>
 
             <div className="flex-1 flex items-center gap-2 max-w-2xl relative">
               <div className="relative flex-1">
@@ -609,14 +638,23 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && input.trim()) {
-                      const msg = input;
-                      setInput("");
-                      setIsCollapsed(false);
-                      createNewConversation(msg);
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (input.trim()) {
+                        const msg = input;
+                        setInput("");
+                        handleCollapsedSend(msg);
+                      } else {
+                        // Just expand if no input
+                        setIsCollapsed(false);
+                      }
                     }
                   }}
-                  placeholder="Start a new chat..."
+                  onFocus={() => {
+                    // If clicking into input with existing chat, could expand first
+                    // But let's keep it simple - they can type and send
+                  }}
+                  placeholder={hasExistingChat ? "Continue chat or start new..." : "Start a new chat..."}
                   disabled={isProcessing}
                   className="w-full h-9 pl-10 pr-4 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -626,11 +664,12 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
                   if (input.trim()) {
                     const msg = input;
                     setInput("");
+                    handleCollapsedSend(msg);
+                  } else {
                     setIsCollapsed(false);
-                    createNewConversation(msg);
                   }
                 }}
-                disabled={!input.trim() || isProcessing}
+                disabled={isProcessing}
                 size="sm"
                 className="h-9 px-3"
               >
@@ -644,7 +683,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
                 New
               </Button>
               <Button variant="ghost" size="sm" onClick={() => setIsCollapsed(false)} className="h-9">
-                Expand
+                {hasExistingChat ? "Open" : "Expand"}
               </Button>
             </div>
           </div>

@@ -592,6 +592,7 @@ export interface SalesforceEventData {
   Description?: string;
   Type?: string;
   Location?: string;
+  Status?: string; // Planned, Completed, Cancelled, Not Held
 }
 
 // Create an Event in Salesforce
@@ -613,6 +614,7 @@ export async function createSalesforceEvent(data: SalesforceEventData) {
   if (data.Description) eventData.Description = data.Description;
   if (data.Type) eventData.Type = data.Type;
   if (data.Location) eventData.Location = data.Location;
+  if (data.Status) eventData.Status = data.Status;
 
   const result = await conn.sobject('Event').create(eventData);
 
