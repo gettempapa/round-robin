@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, ArrowRight, TrendingUp } from "lucide-react";
+import { Sparkles, Send, TrendingUp } from "lucide-react";
 import { useAI } from "./ai-context";
 
 export function AIHeader() {
@@ -61,7 +61,7 @@ export function AIHeader() {
                 {isProcessing ? (
                   <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 ) : (
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <Send className="h-3.5 w-3.5" />
                 )}
               </button>
             </div>
