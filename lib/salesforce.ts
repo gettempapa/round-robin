@@ -578,3 +578,167 @@ export async function getLeadStatuses() {
   const statusField = metadata.fields.find((f: any) => f.name === 'Status');
   return statusField?.picklistValues || [];
 }
+
+// ============================================
+// Salesforce Events API (for Meetings sync)
+// ============================================
+
+export interface SalesforceEventData {
+  Subject: string;
+  WhoId?: string; // Contact/Lead ID
+  OwnerId?: string; // User ID
+  StartDateTime: Date;
+  EndDateTime: Date;
+  Description?: string;
+  Type?: string;
+  Location?: string;
+}
+
+// Create an Event in Salesforce
+export async function createSalesforceEvent(data: SalesforceEventData) {
+  const conn = await getSalesforceConnection();
+  if (!conn) {
+    throw new Error('Not connected to Salesforce');
+  }
+
+  const eventData: Record<string, unknown> = {
+    Subject: data.Subject,
+    StartDateTime: data.StartDateTime.toISOString(),
+    EndDateTime: data.EndDateTime.toISOString(),
+    ShowAs: 'Busy',
+  };
+
+  if (data.WhoId) eventData.WhoId = data.WhoId;
+  if (data.OwnerId) eventData.OwnerId = data.OwnerId;
+  if (data.Description) eventData.Description = data.Description;
+  if (data.Type) eventData.Type = data.Type;
+  if (data.Location) eventData.Location = data.Location;
+
+  const result = await conn.sobject('Event').create(eventData);
+
+  if (result.success) {
+    return { Id: result.id, ...data };
+  }
+
+  throw new Error(`Failed to create Salesforce event: ${JSON.stringify(result.errors)}`);
+}
+
+// Update an Event in Salesforce
+export async function updateSalesforceEvent(eventId: string, data: Partial<{
+  Subject: string;
+  Status: string;
+  Description: string;
+  Location: string;
+  StartDateTime: Date;
+  EndDateTime: Date;
+}>) {
+  const conn = await getSalesforceConnection();
+  if (!conn) {
+    throw new Error('Not connected to Salesforce');
+  }
+
+  const updateData: Record<string, unknown> = { Id: eventId };
+
+  if (data.Subject) updateData.Subject = data.Subject;
+  if (data.Status) updateData.Status = data.Status;
+  if (data.Description) updateData.Description = data.Description;
+  if (data.Location) updateData.Location = data.Location;
+  if (data.StartDateTime) updateData.StartDateTime = data.StartDateTime.toISOString();
+  if (data.EndDateTime) updateData.EndDateTime = data.EndDateTime.toISOString();
+
+  const result = await conn.sobject('Event').update(updateData);
+
+  if (!result.success) {
+    throw new Error(`Failed to update Salesforce event: ${JSON.stringify(result.errors)}`);
+  }
+
+  return result;
+}
+
+// Query Events by IDs
+export async function querySalesforceEventsByIds(eventIds: string[]) {
+  const conn = await getSalesforceConnection();
+  if (!conn) {
+    throw new Error('Not connected to Salesforce');
+  }
+
+  if (eventIds.length === 0) {
+    return [];
+  }
+
+  const idsString = eventIds.map(id => `'${id}'`).join(',');
+
+  const query = `
+    SELECT
+      Id, Subject, WhoId, OwnerId, StartDateTime, EndDateTime,
+      Description, Type, Location, Status, LastModifiedDate
+    FROM Event
+    WHERE Id IN (${idsString})
+  `;
+
+  const result = await conn.query(query);
+
+  return result.records.map((event: any) => ({
+    Id: event.Id,
+    Subject: event.Subject,
+    WhoId: event.WhoId,
+    OwnerId: event.OwnerId,
+    StartDateTime: event.StartDateTime,
+    EndDateTime: event.EndDateTime,
+    Description: event.Description,
+    Type: event.Type,
+    Location: event.Location,
+    Status: event.Status || 'Planned',
+    LastModifiedDate: event.LastModifiedDate,
+  }));
+}
+
+// Query recently modified Events
+export async function querySalesforceEventsModifiedSince(since: Date) {
+  const conn = await getSalesforceConnection();
+  if (!conn) {
+    throw new Error('Not connected to Salesforce');
+  }
+
+  const query = `
+    SELECT
+      Id, Subject, WhoId, OwnerId, StartDateTime, EndDateTime,
+      Description, Type, Location, Status, LastModifiedDate
+    FROM Event
+    WHERE LastModifiedDate > ${since.toISOString()}
+    ORDER BY LastModifiedDate DESC
+    LIMIT 100
+  `;
+
+  const result = await conn.query(query);
+
+  return result.records.map((event: any) => ({
+    Id: event.Id,
+    Subject: event.Subject,
+    WhoId: event.WhoId,
+    OwnerId: event.OwnerId,
+    StartDateTime: event.StartDateTime,
+    EndDateTime: event.EndDateTime,
+    Description: event.Description,
+    Type: event.Type,
+    Location: event.Location,
+    Status: event.Status || 'Planned',
+    LastModifiedDate: event.LastModifiedDate,
+  }));
+}
+
+// Delete an Event in Salesforce
+export async function deleteSalesforceEvent(eventId: string) {
+  const conn = await getSalesforceConnection();
+  if (!conn) {
+    throw new Error('Not connected to Salesforce');
+  }
+
+  const result = await conn.sobject('Event').destroy(eventId);
+
+  if (!result.success) {
+    throw new Error(`Failed to delete Salesforce event: ${JSON.stringify(result.errors)}`);
+  }
+
+  return result;
+}

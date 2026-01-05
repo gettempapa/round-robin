@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/send-reminders",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/detect-no-shows",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-salesforce-events",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}

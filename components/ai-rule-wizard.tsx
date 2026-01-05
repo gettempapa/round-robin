@@ -201,6 +201,24 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
     setLoading(true);
 
     try {
+      // Ensure we have a ruleset to associate the rule with
+      let rulesetId: string | null = null;
+      const rulesetsRes = await fetch("/api/rulesets");
+      const rulesets = await rulesetsRes.json();
+
+      if (rulesets.length === 0) {
+        // Create a default ruleset
+        const newRulesetRes = await fetch("/api/rulesets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "Default Routing", description: "Primary routing rules" }),
+        });
+        const newRuleset = await newRulesetRes.json();
+        rulesetId = newRuleset.id;
+      } else {
+        rulesetId = rulesets[0].id;
+      }
+
       const response = await fetch("/api/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -208,6 +226,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
           name: editedName || suggestion.name,
           description: suggestion.description,
           groupId: selectedGroupId,
+          rulesetId,
           conditions: suggestion.conditions,
           conditionLogic: suggestion.conditionLogic,
         }),

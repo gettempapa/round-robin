@@ -186,28 +186,118 @@ model FormSubmission {
 }
 
 model Booking {
-  id               String    @id @default(cuid())
-  contactId        String
-  userId           String
-  scheduledAt      DateTime
-  duration         Int       @default(30) // minutes
-  status           String    @default("scheduled") // scheduled, completed, cancelled, no_show
-  notes            String?
-  calendarEventId  String?   // Google/Outlook event ID
-  conferenceLink   String?   // Google Meet or Teams link
-  recordingLink    String?   // Recording URL if available
-  actualStartTime  DateTime? // When meeting actually started
-  actualEndTime    DateTime? // When meeting actually ended
-  attendeeCount    Int?      // Number of attendees who joined
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  contactId          String
+  userId             String
+  scheduledAt        DateTime
+  duration           Int       @default(30) // minutes
+  status             String    @default("scheduled") // scheduled, completed, cancelled, no_show, rescheduled
+  notes              String?
+  calendarEventId    String?   // Google/Outlook event ID
+  conferenceLink     String?   // Google Meet or Teams link
+  recordingLink      String?   // Recording URL if available
+  actualStartTime    DateTime? // When meeting actually started
+  actualEndTime      DateTime? // When meeting actually ended
+  attendeeCount      Int?      // Number of attendees who joined
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // New meeting management fields
+  meetingTypeId      String?   // Link to meeting type template
+  outcomeId          String?   // Meeting outcome/disposition
+  cancellationReason String?   // Why was it cancelled
+  originalBookingId  String?   // If this is a reschedule, link to original
+  salesforceEventId  String?   // Salesforce Event ID for sync
+  lastReminderSentAt DateTime? // Track most recent reminder
 
   // Relations
-  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contact             Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meetingType         MeetingType?     @relation(fields: [meetingTypeId], references: [id])
+  outcome             MeetingOutcome?  @relation(fields: [outcomeId], references: [id])
+  originalBooking     Booking?         @relation("RescheduledFrom", fields: [originalBookingId], references: [id])
+  rescheduledBookings Booking[]        @relation("RescheduledFrom")
+  reminders           MeetingReminder[]
+  events              MeetingEvent[]
 
   @@index([userId, scheduledAt])
   @@index([status])
+  @@index([salesforceEventId])
+  @@index([scheduledAt, status])
+}
+
+// Meeting types/templates for standardized booking configurations
+model MeetingType {
+  id          String    @id @default(cuid())
+  name        String    // "Discovery Call", "Demo", "Follow-up"
+  description String?
+  duration    Int       @default(30) // minutes
+  color       String?   // For UI display (hex color)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  bookings Booking[]
+}
+
+// Email reminder configuration (admin-configurable)
+model ReminderConfig {
+  id            String   @id @default(cuid())
+  name          String   // "24h Before", "1h Before"
+  minutesBefore Int      // 1440 for 24h, 60 for 1h
+  emailSubject  String   @default("Reminder: Your upcoming meeting")
+  emailBody     String?  // Custom email body template
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reminders MeetingReminder[]
+}
+
+// Track sent reminders to prevent duplicates
+model MeetingReminder {
+  id               String    @id @default(cuid())
+  bookingId        String
+  reminderConfigId String
+  scheduledFor     DateTime  // When reminder should be sent
+  sentAt           DateTime? // When actually sent (null if pending)
+  status           String    @default("pending") // pending, sent, failed, skipped
+  error            String?   // Error message if failed
+  createdAt        DateTime  @default(now())
+
+  booking        Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reminderConfig ReminderConfig @relation(fields: [reminderConfigId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, reminderConfigId])
+  @@index([status, scheduledFor])
+}
+
+// Meeting outcomes/dispositions
+model MeetingOutcome {
+  id          String   @id @default(cuid())
+  name        String   // "Qualified", "Not Interested", "Reschedule Requested"
+  description String?
+  isPositive  Boolean  @default(true) // For analytics
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  bookings Booking[]
+}
+
+// Meeting timeline/history events
+model MeetingEvent {
+  id            String   @id @default(cuid())
+  bookingId     String
+  eventType     String   // created, status_changed, rescheduled, reminder_sent, note_added, outcome_set
+  description   String
+  previousValue String?  // For status changes
+  newValue      String?
+  performedBy   String?  // User ID who made the change
+  createdAt     DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
 }
 
 // User weekly availability schedule
