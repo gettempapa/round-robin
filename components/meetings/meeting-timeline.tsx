@@ -17,9 +17,9 @@ interface TimelineEvent {
   id: string;
   eventType: string;
   description: string;
-  previousValue: string | null;
-  newValue: string | null;
-  performedBy: string | null;
+  previousValue?: string | null;
+  newValue?: string | null;
+  performedBy?: string | null;
   createdAt: string;
   reminderStatus?: string;
   scheduledFor?: string;

@@ -637,7 +637,7 @@ export async function updateSalesforceEvent(eventId: string, data: Partial<{
     throw new Error('Not connected to Salesforce');
   }
 
-  const updateData: Record<string, unknown> = { Id: eventId };
+  const updateData: { Id: string; [key: string]: unknown } = { Id: eventId };
 
   if (data.Subject) updateData.Subject = data.Subject;
   if (data.Status) updateData.Status = data.Status;
@@ -646,13 +646,14 @@ export async function updateSalesforceEvent(eventId: string, data: Partial<{
   if (data.StartDateTime) updateData.StartDateTime = data.StartDateTime.toISOString();
   if (data.EndDateTime) updateData.EndDateTime = data.EndDateTime.toISOString();
 
-  const result = await conn.sobject('Event').update(updateData);
+  const result = await conn.sobject('Event').update(updateData as any);
+  const singleResult = Array.isArray(result) ? result[0] : result;
 
-  if (!result.success) {
-    throw new Error(`Failed to update Salesforce event: ${JSON.stringify(result.errors)}`);
+  if (!singleResult.success) {
+    throw new Error(`Failed to update Salesforce event: ${JSON.stringify(singleResult.errors)}`);
   }
 
-  return result;
+  return singleResult;
 }
 
 // Query Events by IDs
