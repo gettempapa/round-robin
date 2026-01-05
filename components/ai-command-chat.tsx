@@ -220,9 +220,12 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
-  // Load data for autocomplete
+  // Reset to expanded view and load data when chat opens
   useEffect(() => {
     if (!isOpen) return;
+
+    // Always start expanded when opening the chat
+    setIsCollapsed(false);
 
     Promise.all([
       fetch("/api/groups").then(r => r.json()),
