@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
     // Process tool calls in a loop until we get a final response
     const toolResults: Array<{ tool: string; result: ToolResult }> = [];
     let textContent = "";
+    let pendingConfirmation = false;
 
     while (response.stop_reason === "tool_use") {
       const toolUseBlocks = response.content.filter(
@@ -180,11 +181,22 @@ export async function POST(req: NextRequest) {
         const result = await executeToolCall(toolUse.name, toolUse.input);
         toolResults.push({ tool: toolUse.name, result });
 
+        // Check if this is a pending confirmation (needs user approval before action)
+        if (result.data?.pending === true) {
+          pendingConfirmation = true;
+        }
+
         toolResultsForClaude.push({
           type: "tool_result",
           tool_use_id: toolUse.id,
           content: JSON.stringify(result),
         });
+      }
+
+      // If we have a pending confirmation, break out to show it to the user
+      // Don't continue the Claude conversation - wait for user to confirm
+      if (pendingConfirmation) {
+        break;
       }
 
       // Continue the conversation with tool results
@@ -201,17 +213,21 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Get final text response
-    const finalTextBlocks = response.content.filter(
-      (block): block is Anthropic.TextBlock => block.type === "text"
-    );
-    if (finalTextBlocks.length > 0) {
-      textContent += (textContent ? "\n" : "") + finalTextBlocks.map((b) => b.text).join("\n");
+    // Get final text response (only if not a pending confirmation)
+    if (!pendingConfirmation) {
+      const finalTextBlocks = response.content.filter(
+        (block): block is Anthropic.TextBlock => block.type === "text"
+      );
+      if (finalTextBlocks.length > 0) {
+        textContent += (textContent ? "\n" : "") + finalTextBlocks.map((b) => b.text).join("\n");
+      }
     }
 
     // Build response with text and UI components
     return NextResponse.json({
-      message: textContent || "Done!",
+      message: pendingConfirmation
+        ? "Please review and confirm:"
+        : (textContent || "Done!"),
       toolResults: toolResults.map((tr) => ({
         tool: tr.tool,
         success: tr.result.success,
@@ -219,6 +235,7 @@ export async function POST(req: NextRequest) {
         uiComponent: tr.result.uiComponent,
         data: tr.result.data,
       })),
+      pendingConfirmation,
     });
   } catch (error) {
     console.error("AI chat error:", error);
