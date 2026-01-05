@@ -233,9 +233,11 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
     }).catch(console.error);
   }, [isOpen]);
 
-  // Load conversations from localStorage
+  // Load conversations from localStorage - only once on mount
+  const hasLoadedRef = useRef(false);
   useEffect(() => {
-    if (!isOpen) return;
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
 
     const saved = localStorage.getItem("ai-conversations");
     if (saved) {
@@ -262,7 +264,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
         console.error("Failed to load conversations:", error);
       }
     }
-  }, [isOpen]);
+  }, []);
 
   // Save conversations
   useEffect(() => {
@@ -467,6 +469,10 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
       intent: currentIntent || undefined,
     };
 
+    // Get the current conversation history BEFORE updating state
+    const currentConversation = conversations.find(c => c.id === targetConvId);
+    const existingMessages = currentConversation?.messages || [];
+
     setConversations(prev => prev.map(conv => {
       if (conv.id === targetConvId) {
         const updatedMessages = [...conv.messages, userMsg];
@@ -480,13 +486,12 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
     setIsProcessing(true);
 
     try {
-      const conversation = conversations.find(c => c.id === targetConvId);
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMessage,
-          conversationHistory: conversation?.messages || []
+          conversationHistory: existingMessages
         }),
       });
 
@@ -621,8 +626,8 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
               onClick={() => setIsCollapsed(false)}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="h-7 w-7 rounded-full bg-foreground flex items-center justify-center">
-                <Bot className="h-3.5 w-3.5 text-background" />
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
+                <Bot className="h-3.5 w-3.5 text-white" />
               </div>
               {hasExistingChat && (
                 <span className="text-xs text-muted-foreground hidden sm:inline">

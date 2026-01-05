@@ -309,7 +309,7 @@ export function AIChat({ isOpen, onClose, initialMessage }: AIChatProps) {
           <div className="flex items-center gap-3">
             {/* Agent indicator */}
             <div className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center">
                 <Bot className="h-3.5 w-3.5 text-white" />
               </div>
             </div>
