@@ -449,8 +449,36 @@ export async function executeToolCall(
 
       // ============ RULE OPERATIONS ============
       case "createRule": {
-        const { name, description, groupId, conditions, conditionLogic = "AND" } = toolInput;
+        const { name, description, groupId, conditions, conditionLogic = "AND", confirmed } = toolInput;
 
+        // Get the group for display
+        const group = await db.roundRobinGroup.findUnique({
+          where: { id: groupId },
+        });
+
+        // If not confirmed, show preview for confirmation
+        if (!confirmed) {
+          return {
+            success: true,
+            data: {
+              pending: true,
+              ruleData: { name, description, groupId, conditions, conditionLogic },
+            },
+            uiComponent: {
+              type: "ruleConfirmation",
+              props: {
+                name,
+                description: description || `Route contacts matching conditions to ${group?.name || 'group'}`,
+                groupName: group?.name || "Unknown Group",
+                groupId,
+                conditions,
+                conditionLogic,
+              },
+            },
+          };
+        }
+
+        // Confirmed - actually create the rule
         // Get or create a default ruleset
         let ruleset = await db.ruleset.findFirst({
           where: { isActive: true },

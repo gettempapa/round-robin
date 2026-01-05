@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -843,6 +844,152 @@ export function ConfirmationPrompt({
   );
 }
 
+// ============ RULE CONFIRMATION ============
+
+export function RuleConfirmation({
+  name,
+  description,
+  groupName,
+  groupId,
+  conditions,
+  conditionLogic,
+  onAction,
+  onClose,
+}: {
+  name: string;
+  description: string;
+  groupName: string;
+  groupId: string;
+  conditions: Array<{ field: string; operator: string; value: string }>;
+  conditionLogic: string;
+  onAction?: (action: string, data: any) => void;
+  onClose?: () => void;
+}) {
+  const [isCreating, setIsCreating] = React.useState(false);
+  const [created, setCreated] = React.useState(false);
+  const router = useRouter();
+
+  const handleConfirm = async () => {
+    setIsCreating(true);
+    try {
+      // Call the API to create the rule with confirmed: true
+      const response = await fetch("/api/ai/confirm-rule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description,
+          groupId,
+          conditions,
+          conditionLogic,
+        }),
+      });
+
+      if (response.ok) {
+        setCreated(true);
+        // Optionally refresh or navigate
+        setTimeout(() => {
+          if (onClose) onClose();
+          router.push("/rules");
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Failed to create rule:", error);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  if (created) {
+    return (
+      <Card className="border-green-500 bg-green-500/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-green-700">Rule Created!</h4>
+              <p className="text-sm text-muted-foreground">
+                {name} is now active and routing to {groupName}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-blue-500/50 bg-blue-500/5">
+      <CardHeader className="pb-2">
+        <div className="flex items-center gap-2">
+          <Workflow className="h-5 w-5 text-blue-600" />
+          <CardTitle className="text-base">Confirm New Rule</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">{name}</span>
+            <Badge variant="outline" className="text-blue-600 border-blue-600">
+              Preview
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+
+        <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+          <div className="text-xs text-muted-foreground uppercase font-medium">
+            Conditions ({conditionLogic})
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {conditions.map((c, i) => (
+              <Badge key={i} variant="secondary" className="text-xs font-mono">
+                {c.field} {c.operator} &quot;{c.value}&quot;
+              </Badge>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">Routes to:</span>
+          <Badge>{groupName}</Badge>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => onClose?.()}
+            className="flex-1"
+            disabled={isCreating}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            className="flex-1 bg-blue-600 hover:bg-blue-700"
+            disabled={isCreating}
+          >
+            {isCreating ? (
+              <>
+                <span className="animate-spin mr-2">⏳</span>
+                Creating...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Create Rule
+              </>
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ============ COMPONENT RENDERER ============
 
 export function renderToolComponent(
@@ -881,6 +1028,8 @@ export function renderToolComponent(
       return <NavigationButton {...props} onNavigate={onClose} />;
     case "confirmation":
       return <ConfirmationPrompt {...props} onAction={onAction} />;
+    case "ruleConfirmation":
+      return <RuleConfirmation {...props} onAction={onAction} onClose={onClose} />;
     default:
       return (
         <Card>
