@@ -745,3 +745,286 @@ export async function deleteSalesforceEvent(eventId: string) {
 
   return result;
 }
+
+// ============================================
+// Timeline API - Full contact/lead history
+// ============================================
+
+export type TimelineEvent = {
+  id: string;
+  type: 'created' | 'status_change' | 'owner_change' | 'converted' | 'activity' | 'task' | 'event' | 'opportunity' | 'account_linked' | 'email' | 'call' | 'note';
+  title: string;
+  description?: string;
+  timestamp: string;
+  actor?: { id: string; name: string };
+  metadata?: Record<string, any>;
+  icon?: string;
+  color?: string;
+};
+
+export async function getRecordTimeline(recordId: string): Promise<{
+  record: any;
+  timeline: TimelineEvent[];
+}> {
+  const conn = await getSalesforceConnection();
+  if (!conn) {
+    throw new Error('Not connected to Salesforce');
+  }
+
+  const isLead = recordId.startsWith('00Q');
+  const isContact = recordId.startsWith('003');
+  const objectType = isLead ? 'Lead' : 'Contact';
+
+  const timeline: TimelineEvent[] = [];
+
+  // 1. Get the main record with history
+  const recordQuery = isLead
+    ? `SELECT Id, Name, Email, Company, Status, LeadSource, Owner.Id, Owner.Name,
+         CreatedDate, CreatedBy.Name, LastModifiedDate, ConvertedDate, ConvertedContactId,
+         ConvertedAccountId, ConvertedOpportunityId
+       FROM Lead WHERE Id = '${recordId}'`
+    : `SELECT Id, Name, Email, Account.Id, Account.Name, Owner.Id, Owner.Name,
+         CreatedDate, CreatedBy.Name, LastModifiedDate
+       FROM Contact WHERE Id = '${recordId}'`;
+
+  const recordResult = await conn.query(recordQuery);
+  if (recordResult.records.length === 0) {
+    throw new Error('Record not found');
+  }
+
+  const record = recordResult.records[0] as any;
+
+  // Add creation event
+  timeline.push({
+    id: `${recordId}-created`,
+    type: 'created',
+    title: `${objectType} Created`,
+    description: isLead ? `Lead created from ${record.LeadSource || 'unknown source'}` : 'Contact created',
+    timestamp: record.CreatedDate,
+    actor: { id: '', name: record.CreatedBy?.Name || 'System' },
+    icon: 'plus-circle',
+    color: 'emerald',
+  });
+
+  // 2. Get field history (status changes, owner changes, etc.)
+  try {
+    const historyObject = isLead ? 'LeadHistory' : 'ContactHistory';
+    const historyQuery = `
+      SELECT Id, Field, OldValue, NewValue, CreatedDate, CreatedBy.Name
+      FROM ${historyObject}
+      WHERE ${isLead ? 'LeadId' : 'ContactId'} = '${recordId}'
+      ORDER BY CreatedDate DESC
+      LIMIT 100
+    `;
+    const historyResult = await conn.query(historyQuery);
+
+    for (const h of historyResult.records as any[]) {
+      if (h.Field === 'Owner' || h.Field === 'OwnerId') {
+        timeline.push({
+          id: h.Id,
+          type: 'owner_change',
+          title: 'Owner Changed',
+          description: `${h.OldValue || 'Unassigned'} → ${h.NewValue}`,
+          timestamp: h.CreatedDate,
+          actor: { id: '', name: h.CreatedBy?.Name || 'System' },
+          metadata: { oldValue: h.OldValue, newValue: h.NewValue },
+          icon: 'user-check',
+          color: 'blue',
+        });
+      } else if (h.Field === 'Status') {
+        timeline.push({
+          id: h.Id,
+          type: 'status_change',
+          title: 'Status Changed',
+          description: `${h.OldValue || 'None'} → ${h.NewValue}`,
+          timestamp: h.CreatedDate,
+          actor: { id: '', name: h.CreatedBy?.Name || 'System' },
+          metadata: { oldValue: h.OldValue, newValue: h.NewValue },
+          icon: 'refresh-cw',
+          color: 'amber',
+        });
+      }
+    }
+  } catch (e) {
+    // History tracking might not be enabled
+    console.log('Field history not available');
+  }
+
+  // 3. Get Tasks
+  try {
+    const taskQuery = `
+      SELECT Id, Subject, Status, Priority, Description, ActivityDate,
+             CreatedDate, Owner.Name, WhoId, Type
+      FROM Task
+      WHERE WhoId = '${recordId}'
+      ORDER BY CreatedDate DESC
+      LIMIT 50
+    `;
+    const taskResult = await conn.query(taskQuery);
+
+    for (const task of taskResult.records as any[]) {
+      const isCall = task.Type === 'Call' || task.Subject?.toLowerCase().includes('call');
+      const isEmail = task.Type === 'Email' || task.Subject?.toLowerCase().includes('email');
+
+      timeline.push({
+        id: task.Id,
+        type: isCall ? 'call' : isEmail ? 'email' : 'task',
+        title: task.Subject || 'Task',
+        description: task.Description?.substring(0, 200),
+        timestamp: task.CreatedDate,
+        actor: { id: '', name: task.Owner?.Name || 'Unknown' },
+        metadata: { status: task.Status, priority: task.Priority },
+        icon: isCall ? 'phone' : isEmail ? 'mail' : 'check-square',
+        color: task.Status === 'Completed' ? 'emerald' : 'slate',
+      });
+    }
+  } catch (e) {
+    console.log('Tasks not available');
+  }
+
+  // 4. Get Events (meetings, etc.)
+  try {
+    const eventQuery = `
+      SELECT Id, Subject, Description, StartDateTime, EndDateTime,
+             CreatedDate, Owner.Name, WhoId, Type, Location
+      FROM Event
+      WHERE WhoId = '${recordId}'
+      ORDER BY CreatedDate DESC
+      LIMIT 50
+    `;
+    const eventResult = await conn.query(eventQuery);
+
+    for (const event of eventResult.records as any[]) {
+      timeline.push({
+        id: event.Id,
+        type: 'event',
+        title: event.Subject || 'Meeting',
+        description: event.Location ? `Location: ${event.Location}` : event.Description?.substring(0, 200),
+        timestamp: event.StartDateTime || event.CreatedDate,
+        actor: { id: '', name: event.Owner?.Name || 'Unknown' },
+        metadata: { startTime: event.StartDateTime, endTime: event.EndDateTime, type: event.Type },
+        icon: 'calendar',
+        color: 'purple',
+      });
+    }
+  } catch (e) {
+    console.log('Events not available');
+  }
+
+  // 5. If Lead was converted, add conversion event
+  if (isLead && record.ConvertedDate) {
+    timeline.push({
+      id: `${recordId}-converted`,
+      type: 'converted',
+      title: 'Lead Converted',
+      description: 'Converted to Contact, Account, and Opportunity',
+      timestamp: record.ConvertedDate,
+      metadata: {
+        contactId: record.ConvertedContactId,
+        accountId: record.ConvertedAccountId,
+        opportunityId: record.ConvertedOpportunityId,
+      },
+      icon: 'check-circle',
+      color: 'emerald',
+    });
+  }
+
+  // 6. For Contacts, get related Opportunities via ContactRoles
+  if (isContact) {
+    try {
+      const oppQuery = `
+        SELECT Id, Opportunity.Id, Opportunity.Name, Opportunity.StageName,
+               Opportunity.Amount, Opportunity.CloseDate, Opportunity.CreatedDate,
+               Role, CreatedDate
+        FROM OpportunityContactRole
+        WHERE ContactId = '${recordId}'
+        ORDER BY CreatedDate DESC
+        LIMIT 20
+      `;
+      const oppResult = await conn.query(oppQuery);
+
+      for (const ocr of oppResult.records as any[]) {
+        timeline.push({
+          id: ocr.Id,
+          type: 'opportunity',
+          title: `Linked to Opportunity`,
+          description: `${ocr.Opportunity?.Name} (${ocr.Opportunity?.StageName})${ocr.Role ? ` as ${ocr.Role}` : ''}`,
+          timestamp: ocr.CreatedDate,
+          metadata: {
+            opportunityId: ocr.Opportunity?.Id,
+            amount: ocr.Opportunity?.Amount,
+            stage: ocr.Opportunity?.StageName,
+            closeDate: ocr.Opportunity?.CloseDate,
+            role: ocr.Role,
+          },
+          icon: 'briefcase',
+          color: 'indigo',
+        });
+      }
+    } catch (e) {
+      console.log('Opportunity roles not available');
+    }
+
+    // Get Account link if exists
+    if (record.Account?.Id) {
+      timeline.push({
+        id: `${recordId}-account`,
+        type: 'account_linked',
+        title: 'Linked to Account',
+        description: record.Account.Name,
+        timestamp: record.CreatedDate, // Approximate - contacts are linked at creation
+        metadata: { accountId: record.Account.Id, accountName: record.Account.Name },
+        icon: 'building',
+        color: 'sky',
+      });
+    }
+  }
+
+  // 7. Get Notes (ContentNote via ContentDocumentLink)
+  try {
+    const noteQuery = `
+      SELECT ContentDocument.Title, ContentDocument.CreatedDate,
+             ContentDocument.CreatedBy.Name, ContentDocument.FileType
+      FROM ContentDocumentLink
+      WHERE LinkedEntityId = '${recordId}'
+      ORDER BY ContentDocument.CreatedDate DESC
+      LIMIT 20
+    `;
+    const noteResult = await conn.query(noteQuery);
+
+    for (const note of noteResult.records as any[]) {
+      const doc = note.ContentDocument as any;
+      if (doc?.FileType === 'SNOTE') {
+        timeline.push({
+          id: `note-${doc.Id}`,
+          type: 'note',
+          title: 'Note Added',
+          description: doc.Title,
+          timestamp: doc.CreatedDate,
+          actor: { id: '', name: doc.CreatedBy?.Name || 'Unknown' },
+          icon: 'file-text',
+          color: 'slate',
+        });
+      }
+    }
+  } catch (e) {
+    console.log('Notes not available');
+  }
+
+  // Sort timeline by timestamp descending
+  timeline.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  return {
+    record: {
+      id: record.Id,
+      name: record.Name,
+      email: record.Email,
+      company: isLead ? record.Company : record.Account?.Name,
+      status: isLead ? record.Status : null,
+      owner: record.Owner ? { id: record.Owner.Id, name: record.Owner.Name } : null,
+      createdAt: record.CreatedDate,
+      _type: isLead ? 'lead' : 'contact',
+    },
+    timeline,
+  };
+}

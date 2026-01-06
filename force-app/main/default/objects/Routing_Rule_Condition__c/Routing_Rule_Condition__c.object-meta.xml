@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+  <label>Routing Rule Condition</label>
+  <pluralLabel>Routing Rule Conditions</pluralLabel>
+  <nameField>
+    <type>AutoNumber</type>
+    <label>Routing Rule Condition</label>
+    <displayFormat>RC-{0000}</displayFormat>
+  </nameField>
+  <deploymentStatus>Deployed</deploymentStatus>
+  <enableReports>true</enableReports>
+  <sharingModel>ControlledByParent</sharingModel>
+</CustomObject>

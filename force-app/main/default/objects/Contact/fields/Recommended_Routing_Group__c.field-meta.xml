@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Recommended_Routing_Group__c</fullName>
+  <label>Recommended Routing Group</label>
+  <type>Lookup</type>
+  <referenceTo>Routing_Group__c</referenceTo>
+  <relationshipLabel>Recommended Routing Groups</relationshipLabel>
+  <relationshipName>RecommendedRoutingGroupContact</relationshipName>
+</CustomField>

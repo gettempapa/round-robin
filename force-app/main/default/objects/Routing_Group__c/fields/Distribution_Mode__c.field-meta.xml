@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Distribution_Mode__c</fullName>
+  <label>Distribution Mode</label>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value>
+        <fullName>Equal</fullName>
+        <label>Equal</label>
+        <default>true</default>
+      </value>
+      <value>
+        <fullName>Weighted</fullName>
+        <label>Weighted</label>
+        <default>false</default>
+      </value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

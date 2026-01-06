@@ -49,10 +49,12 @@ import {
   Building2,
   ChevronLeft,
   ChevronRight,
+  Clock,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAI } from "@/components/ai-context";
+import { ContactTimeline } from "@/components/contact-timeline";
 import Link from "next/link";
 
 type SalesforceRecord = {
@@ -115,6 +117,7 @@ export default function ContactsPage() {
 
   // Detail view
   const [viewingRecord, setViewingRecord] = useState<SalesforceRecord | null>(null);
+  const [timelineRecordId, setTimelineRecordId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRecords();
@@ -405,6 +408,10 @@ export default function ContactsPage() {
                               <ContactIcon className="mr-2 h-4 w-4" />
                               View Details
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimelineRecordId(record.id)}>
+                              <Clock className="mr-2 h-4 w-4" />
+                              View Timeline
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setAssigningRecord(record)}>
                               <Users className="mr-2 h-4 w-4" />
                               {record.owner ? 'Change Owner' : 'Assign Owner'}
@@ -677,21 +684,46 @@ export default function ContactsPage() {
                 )}
               </div>
 
-              <div className="border-t pt-4 flex justify-between">
+              <div className="border-t pt-4 flex justify-between items-center">
                 <p className="text-xs text-muted-foreground">
                   Created {new Date(viewingRecord.createdAt).toLocaleDateString()}
                 </p>
-                <a
-                  href={`https://login.salesforce.com/${viewingRecord.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline flex items-center gap-1"
-                >
-                  Open in Salesforce
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setTimelineRecordId(viewingRecord.id);
+                      setViewingRecord(null);
+                    }}
+                  >
+                    <Clock className="h-3.5 w-3.5 mr-1.5" />
+                    View Timeline
+                  </Button>
+                  <a
+                    href={`https://login.salesforce.com/${viewingRecord.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
+                    Open in Salesforce
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Timeline Dialog */}
+      <Dialog open={timelineRecordId !== null} onOpenChange={(o) => !o && setTimelineRecordId(null)}>
+        <DialogContent className="max-w-3xl h-[80vh] p-0 overflow-hidden">
+          {timelineRecordId && (
+            <ContactTimeline
+              recordId={timelineRecordId}
+              onClose={() => setTimelineRecordId(null)}
+            />
           )}
         </DialogContent>
       </Dialog>

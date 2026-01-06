@@ -40,6 +40,12 @@ type RoutingContext = {
 // Condition Evaluation
 // ============================================================================
 
+type ConditionResult = {
+  condition: Condition;
+  matched: boolean;
+  actualValue: string | null;
+};
+
 function evaluateCondition(contact: Contact, condition: Condition): boolean {
   const rawFieldValue = contact[condition.field as keyof Contact];
   const fieldValue = (rawFieldValue || "").toString().toLowerCase();
@@ -67,6 +73,17 @@ function evaluateCondition(contact: Contact, condition: Condition): boolean {
     default:
       return false;
   }
+}
+
+// Enhanced version that returns details about each condition
+function evaluateConditionWithDetails(contact: Contact, condition: Condition): ConditionResult {
+  const rawFieldValue = contact[condition.field as keyof Contact];
+  const matched = evaluateCondition(contact, condition);
+  return {
+    condition,
+    matched,
+    actualValue: rawFieldValue?.toString() || null,
+  };
 }
 
 function evaluateRule(
@@ -403,9 +420,13 @@ export async function autoRouteContact(
           continue;
         }
 
-        // Rule matches! Try to route to primary group
+        // Rule matches! Capture which conditions matched
+        const matchedConditions = conditions.map(c => evaluateConditionWithDetails(contact, c));
+
+        // Try to route to primary group
         let targetGroupId = rule.groupId;
         let user;
+        let usedFallback = false;
 
         try {
           user = await getNextUserInGroup(targetGroupId, context);
@@ -417,10 +438,24 @@ export async function autoRouteContact(
             );
             targetGroupId = rule.fallbackGroupId;
             user = await getNextUserInGroup(targetGroupId, context);
+            usedFallback = true;
           } else {
             throw error;
           }
         }
+
+        // Build routing metadata with matched conditions
+        const routingMetadata = {
+          matchedRule: {
+            id: rule.id,
+            name: rule.name,
+            priority: rule.priority,
+          },
+          conditions: matchedConditions,
+          conditionLogic: rule.conditionLogic || "AND",
+          usedFallbackGroup: usedFallback,
+          routedAt: new Date().toISOString(),
+        };
 
         // Create assignment
         const assignment = await db.assignment.create({
@@ -432,6 +467,7 @@ export async function autoRouteContact(
             ruleId: rule.id,
             timezone: context.timezone,
             leadScore: context.leadScore,
+            metadata: JSON.stringify(routingMetadata),
           },
         });
 

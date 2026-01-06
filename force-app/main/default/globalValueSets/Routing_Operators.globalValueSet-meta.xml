@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GlobalValueSet xmlns="http://soap.sforce.com/2006/04/metadata">
+  <customValue>
+    <fullName>equals</fullName>
+    <label>Equals</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>notEquals</fullName>
+    <label>Not Equals</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>contains</fullName>
+    <label>Contains</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>notContains</fullName>
+    <label>Not Contains</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>startsWith</fullName>
+    <label>Starts With</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>isBlank</fullName>
+    <label>Is Blank</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>isPresent</fullName>
+    <label>Is Present</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>greaterThan</fullName>
+    <label>Greater Than</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>lessThan</fullName>
+    <label>Less Than</label>
+    <isActive>true</isActive>
+  </customValue>
+  <masterLabel>Routing Operators</masterLabel>
+  <sorted>false</sorted>
+</GlobalValueSet>

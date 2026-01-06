@@ -11,13 +11,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Activity as ActivityIcon } from "lucide-react";
+import { Activity as ActivityIcon, CheckCircle, XCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useEffect, useState } from "react";
 import { ContactDetailDialog } from "@/components/contact-detail-dialog";
 import { UserDetailDialog } from "@/components/user-detail-dialog";
 import { GroupDetailDialog } from "@/components/group-detail-dialog";
 import { RuleDetailDialog } from "@/components/rule-detail-dialog";
+
+type MatchedCondition = {
+  condition: { field: string; operator: string; value: string };
+  matched: boolean;
+  actualValue: string | null;
+};
 
 type Assignment = {
   id: string;
@@ -26,6 +32,7 @@ type Assignment = {
   groupId: string;
   method: string;
   ruleId: string | null;
+  metadata: string | null;
   createdAt: string;
   contact: {
     id: string;
@@ -121,15 +128,39 @@ export default function ActivityPage() {
                 <TableBody>
                   {assignments.map((assignment) => {
                     const rule = assignment.ruleId ? rulesMap.get(assignment.ruleId) : null;
-                    let conditions: any[] = [];
-                    if (rule) {
+
+                    // Try to get matched conditions from metadata (with actual values)
+                    let matchedConditions: MatchedCondition[] = [];
+                    let conditionLogic = "AND";
+                    let metadataRuleName = null;
+
+                    if (assignment.metadata) {
                       try {
-                        const parsed = JSON.parse(rule.conditions);
-                        if (Array.isArray(parsed)) {
-                          conditions = parsed;
+                        const meta = JSON.parse(assignment.metadata);
+                        if (meta.conditions && Array.isArray(meta.conditions)) {
+                          matchedConditions = meta.conditions;
+                        }
+                        if (meta.conditionLogic) {
+                          conditionLogic = meta.conditionLogic;
+                        }
+                        if (meta.matchedRule?.name) {
+                          metadataRuleName = meta.matchedRule.name;
                         }
                       } catch {}
                     }
+
+                    // Fallback to rule conditions if no metadata
+                    let fallbackConditions: any[] = [];
+                    if (matchedConditions.length === 0 && rule) {
+                      try {
+                        const parsed = JSON.parse(rule.conditions);
+                        if (Array.isArray(parsed)) {
+                          fallbackConditions = parsed;
+                        }
+                      } catch {}
+                    }
+
+                    const displayRuleName = metadataRuleName || rule?.name;
 
                     return (
                       <TableRow key={assignment.id}>
@@ -167,17 +198,37 @@ export default function ActivityPage() {
                             >
                               {assignment.method === "auto" ? "Auto-routed" : "Manual"}
                             </Badge>
-                            {rule && (
+                            {displayRuleName && (
                               <div className="text-xs text-muted-foreground mt-1">
                                 <button
-                                  onClick={() => setViewingRuleId(rule.id)}
+                                  onClick={() => rule && setViewingRuleId(rule.id)}
                                   className="font-medium hover:text-primary hover:underline transition-colors"
                                 >
-                                  {rule.name}
+                                  {displayRuleName}
                                 </button>
-                                {conditions.length > 0 && (
+
+                                {/* Show matched conditions with actual values */}
+                                {matchedConditions.length > 0 && (
+                                  <div className="mt-1.5 space-y-0.5">
+                                    {matchedConditions.map((mc, i) => (
+                                      <div key={i} className="flex items-center gap-1">
+                                        {i > 0 && <span className="text-[10px] text-muted-foreground/60 mr-1">{conditionLogic}</span>}
+                                        <CheckCircle className="h-3 w-3 text-emerald-500 shrink-0" />
+                                        <span className="font-mono text-[11px]">
+                                          {mc.condition.field} {mc.condition.operator} "{mc.condition.value}"
+                                        </span>
+                                        <span className="text-muted-foreground/60 text-[10px]">
+                                          (was: {mc.actualValue || 'empty'})
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Fallback: show rule conditions without actual values */}
+                                {matchedConditions.length === 0 && fallbackConditions.length > 0 && (
                                   <div className="mt-1">
-                                    Matched: {conditions.map((c, i) => (
+                                    Matched: {fallbackConditions.map((c, i) => (
                                       <span key={i}>
                                         {i > 0 && " AND "}
                                         <span className="font-mono">

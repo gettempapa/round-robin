@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Group__c</fullName>
+  <label>Routing Group</label>
+  <type>MasterDetail</type>
+  <referenceTo>Routing_Group__c</referenceTo>
+  <relationshipLabel>Group Members</relationshipLabel>
+  <relationshipName>GroupMembers</relationshipName>
+</CustomField>

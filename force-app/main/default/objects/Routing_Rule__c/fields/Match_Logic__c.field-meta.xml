@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Match_Logic__c</fullName>
+  <label>Match Logic</label>
+  <type>Picklist</type>
+  <valueSet>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value>
+        <fullName>AND</fullName>
+        <label>AND</label>
+        <default>true</default>
+      </value>
+      <value>
+        <fullName>OR</fullName>
+        <label>OR</label>
+        <default>false</default>
+      </value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

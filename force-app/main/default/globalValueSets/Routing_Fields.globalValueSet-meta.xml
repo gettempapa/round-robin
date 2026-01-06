@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GlobalValueSet xmlns="http://soap.sforce.com/2006/04/metadata">
+  <customValue>
+    <fullName>leadSource</fullName>
+    <label>Lead Source</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>leadStatus</fullName>
+    <label>Lead Status</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>lifecycleStage</fullName>
+    <label>Lifecycle Stage</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>campaign</fullName>
+    <label>Campaign</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>inboundChannel</fullName>
+    <label>Inbound Channel</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>industry</fullName>
+    <label>Industry</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>company</fullName>
+    <label>Company</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>companyDomain</fullName>
+    <label>Company Domain</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>companySize</fullName>
+    <label>Company Size</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>employeeCount</fullName>
+    <label>Employee Count</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>annualRevenue</fullName>
+    <label>Annual Revenue</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>accountTier</fullName>
+    <label>Account Tier</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>region</fullName>
+    <label>Region</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>country</fullName>
+    <label>Country</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>state</fullName>
+    <label>State / Province</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>city</fullName>
+    <label>City</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>email</fullName>
+    <label>Email</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>jobTitle</fullName>
+    <label>Job Title</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>department</fullName>
+    <label>Department</label>
+    <isActive>true</isActive>
+  </customValue>
+  <customValue>
+    <fullName>productInterest</fullName>
+    <label>Product Interest</label>
+    <isActive>true</isActive>
+  </customValue>
+  <masterLabel>Routing Fields</masterLabel>
+  <sorted>false</sorted>
+</GlobalValueSet>
