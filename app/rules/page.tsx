@@ -31,17 +31,10 @@ import {
   Power,
   PowerOff,
   Sparkles,
-  UserPlus,
-  RefreshCw,
-  FileText,
-  Webhook,
-  Hand,
   Layers,
-  Zap,
   Target,
   ArrowRight,
   Users as UsersIcon,
-  Settings,
   X
 } from "lucide-react";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
@@ -75,18 +68,12 @@ type Rule = {
   conditions: string;
 };
 
-type RulesetTrigger = {
-  id: string;
-  triggerType: string;
-};
-
 type Ruleset = {
   id: string;
   name: string;
   description: string | null;
   isActive: boolean;
   rules: Rule[];
-  triggers: RulesetTrigger[];
 };
 
 type Group = {
@@ -96,14 +83,6 @@ type Group = {
   rules?: Rule[];
   _count?: { assignments: number };
 };
-
-const TRIGGER_TYPES = [
-  { value: "contact_created", label: "Record Created", icon: UserPlus, color: "emerald", description: "Triggers when a new lead, contact, or account is created" },
-  { value: "contact_updated", label: "Record Updated", icon: RefreshCw, color: "blue", description: "Triggers when routing context changes" },
-  { value: "form_submitted", label: "Form Submission", icon: FileText, color: "blue", description: "Triggers on inbound form submissions" },
-  { value: "api_webhook", label: "API / Webhook", icon: Webhook, color: "orange", description: "Triggers from external API calls" },
-  { value: "manual", label: "Manual Routing", icon: Hand, color: "amber", description: "Triggers on manual routing requests" },
-];
 
 const OPERATORS = [
   { value: "equals", label: "Equals", needsValue: true },
@@ -127,8 +106,6 @@ function RulesPageContent() {
   const [selectedRulesetId, setSelectedRulesetId] = useState<string | null>(null);
   const [rulesetDialogOpen, setRulesetDialogOpen] = useState(false);
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
-  const [triggerDialogOpen, setTriggerDialogOpen] = useState(false);
-  const [managingTriggersRulesetId, setManagingTriggersRulesetId] = useState<string | null>(null);
   const [aiWizardOpen, setAiWizardOpen] = useState(false);
   const [initialPrompt, setInitialPrompt] = useState<string | null>(null);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
@@ -391,32 +368,6 @@ function RulesPageContent() {
     }
   };
 
-  const toggleTrigger = async (rulesetId: string, triggerType: string, isConnected: boolean) => {
-    try {
-      if (isConnected) {
-        const response = await fetch(`/api/rulesets/${rulesetId}/triggers/${triggerType}`, {
-          method: "DELETE",
-        });
-        if (response.ok) {
-          toast.success("Trigger disconnected");
-          fetchData();
-        }
-      } else {
-        const response = await fetch(`/api/rulesets/${rulesetId}/triggers`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ triggerType }),
-        });
-        if (response.ok) {
-          toast.success("Trigger connected");
-          fetchData();
-        }
-      }
-    } catch (error) {
-      toast.error("Failed to update trigger");
-    }
-  };
-
   const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
@@ -428,11 +379,11 @@ function RulesPageContent() {
     return Math.min((assignmentsPerMember / 10) * 100, 100);
   };
 
-  const activeTriggers = Array.from(
-    new Set(rulesets.flatMap(rs => rs.triggers.map(t => t.triggerType)))
-  );
-
-  const managingTriggersRuleset = rulesets.find(r => r.id === managingTriggersRulesetId);
+  // Group rules by their destination group for cleaner display
+  const rulesByGroup = groups.map(group => {
+    const groupRules = rulesets.flatMap(rs => rs.rules).filter(r => r.groupId === group.id);
+    return { group, rules: groupRules };
+  }).filter(g => g.rules.length > 0);
 
   return (
     <DashboardLayout>
@@ -736,202 +687,181 @@ function RulesPageContent() {
                 );
               })}
             </svg>
-            {/* Flow Canvas */}
-            <div className="grid grid-cols-[minmax(180px,auto)_1fr_minmax(240px,auto)] gap-20 items-start relative" style={{zIndex: 2}}>
-              {/* Column 1: Triggers */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-4">
-                  <Zap className="h-4 w-4 text-muted-foreground" />
-                  <h2 className="text-technical text-muted-foreground">
-                    Triggers
-                  </h2>
-                </div>
-                {activeTriggers.map((triggerType) => {
-                  const config = TRIGGER_TYPES.find(t => t.value === triggerType);
-                  if (!config) return null;
-                  const Icon = config.icon;
-                  const connectedRulesets = rulesets.filter(rs =>
-                    rs.triggers.some(t => t.triggerType === triggerType)
-                  );
-
-                  return (
-                    <div key={triggerType} className="group relative">
-                      <div className="relative rounded border bg-card p-3 transition-all duration-200 hover:border-foreground/30">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded bg-muted border">
-                            <Icon className="h-5 w-5 text-foreground" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-bold">{config.label}</div>
-                            <div className="text-xs text-muted-foreground">
-                              → {connectedRulesets.length} ruleset{connectedRulesets.length !== 1 ? 's' : ''}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Column 2: Rulesets → Rules Flow */}
+            {/* Flow Canvas - Rules grouped by destination */}
+            <div className="grid grid-cols-[1fr_minmax(280px,auto)] gap-12 items-start relative" style={{zIndex: 2}}>
+              {/* Column 1: Rules grouped by destination group */}
               <div className="space-y-6 min-h-[400px]">
-                {rulesets.map((ruleset, rulesetIndex) => (
-                  <div key={ruleset.id} className="relative">
-                    <div className="relative rounded border bg-card p-4">
+                {rulesByGroup.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Layers className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">No rules created yet</p>
+                    <p className="text-xs mt-1">Create rules to start routing contacts to groups</p>
+                  </div>
+                ) : (
+                  rulesByGroup.map(({ group, rules }, groupIndex) => {
+                    const utilization = getUtilization(group);
+                    const isSelected = selectedGroup?.id === group.id;
 
-                      <div className="relative">
-                        <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/20 border-2 border-primary/40">
-                              <Layers className="h-5 w-5 text-primary" />
+                    return (
+                      <div key={group.id} className="relative">
+                        <div
+                          className={`relative rounded-lg border bg-card p-4 transition-all duration-200 ${
+                            isSelected ? 'border-primary shadow-md' : 'border-border'
+                          }`}
+                        >
+                          {/* Group Header */}
+                          <div
+                            className="flex items-center justify-between mb-4 cursor-pointer"
+                            onClick={() => setSelectedGroup(isSelected ? null : group)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 transition-all ${
+                                isSelected
+                                  ? 'bg-primary/20 border-primary'
+                                  : 'bg-muted border-muted-foreground/20'
+                              }`}>
+                                <Target className={`h-5 w-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                              </div>
+                              <div>
+                                <div className="text-base font-bold flex items-center gap-2">
+                                  {group.name}
+                                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                                  <span>{rules.length} rule{rules.length !== 1 ? 's' : ''}</span>
+                                  <span className="text-muted-foreground/50">•</span>
+                                  <span>{group.members?.length || 0} member{(group.members?.length || 0) !== 1 ? 's' : ''}</span>
+                                  <span className="text-muted-foreground/50">•</span>
+                                  <span>{Math.round(utilization)}% capacity</span>
+                                </div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="text-base font-bold">{ruleset.name}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {ruleset.rules.length} rule{ruleset.rules.length !== 1 ? 's' : ''}
+                            <div className="flex items-center gap-2">
+                              <div className="flex -space-x-2">
+                                {group.members?.slice(0, 3).map((member, i) => (
+                                  <Avatar key={i} className="h-7 w-7 border-2 border-background">
+                                    <AvatarFallback className="text-[10px]">
+                                      {getInitials(member.user.name)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                                {(group.members?.length || 0) > 3 && (
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-semibold">
+                                    +{(group.members?.length || 0) - 3}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={() => {
-                                setManagingTriggersRulesetId(ruleset.id);
-                                setTriggerDialogOpen(true);
-                              }}
-                            >
-                              <Settings className="h-3 w-3 mr-1" />
-                              Triggers
-                            </Button>
-                            <Badge
-                              variant={ruleset.isActive ? "default" : "secondary"}
-                              className={ruleset.isActive ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/30' : ''}
-                            >
-                              {ruleset.isActive ? "Active" : "Inactive"}
-                            </Badge>
+
+                          {/* Rules in this group */}
+                          <div className="space-y-2">
+                            {rules
+                              .sort((a, b) => a.priority - b.priority)
+                              .map((rule, ruleIndex) => {
+                                return (
+                                  <div key={rule.id} className="relative">
+                                    <div
+                                      ref={(el) => {
+                                        if (el) ruleRefs.current.set(rule.id, el);
+                                        else ruleRefs.current.delete(rule.id);
+                                      }}
+                                      className={`relative flex items-center gap-3 p-3 rounded border transition-all duration-200 hover:shadow-sm ${
+                                        rule.isActive
+                                          ? 'bg-background border-border hover:border-foreground/30'
+                                          : 'bg-muted/20 border-muted/30 opacity-60'
+                                      } ${
+                                        highlightElement?.type === 'rule' && highlightElement?.id === rule.id
+                                          ? 'ai-highlight'
+                                          : ''
+                                      }`}
+                                    >
+                                      <div className={`flex h-6 w-6 items-center justify-center rounded border text-xs font-bold shrink-0 ${
+                                        rule.isActive
+                                          ? 'bg-muted border text-foreground'
+                                          : 'bg-muted/20 border-muted/30 text-muted-foreground'
+                                      }`}>
+                                        {rule.priority}
+                                      </div>
+
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-semibold truncate">{rule.name}</div>
+                                        {rule.description && (
+                                          <div className="text-xs text-muted-foreground truncate">{rule.description}</div>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center gap-1 shrink-0">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleRuleStatus(rule);
+                                          }}
+                                        >
+                                          {rule.isActive ? (
+                                            <PowerOff className="h-3.5 w-3.5" />
+                                          ) : (
+                                            <Power className="h-3.5 w-3.5" />
+                                          )}
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openEditRuleDialog(rule);
+                                          }}
+                                        >
+                                          <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteRule(rule.id);
+                                          }}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </div>
+                                    </div>
+
+                                    {ruleIndex < rules.length - 1 && (
+                                      <div className="flex items-center gap-2 py-1 pl-9">
+                                        <div className="text-[10px] font-bold text-primary/60">
+                                          ↓ No match? Try next
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          {ruleset.rules
-                            .sort((a, b) => a.priority - b.priority)
-                            .map((rule, ruleIndex) => {
-                              const group = groups.find(g => g.id === rule.groupId);
-                              if (!group) return null;
-
-                              return (
-                                <div key={rule.id} className="relative">
-                                  <div
-                                    ref={(el) => {
-                                      if (el) ruleRefs.current.set(rule.id, el);
-                                      else ruleRefs.current.delete(rule.id);
-                                    }}
-                                    className={`relative flex items-center gap-3 p-3 rounded border transition-all duration-200 hover:shadow-sm cursor-pointer ${
-                                      rule.isActive
-                                        ? 'bg-card border-border hover:border-foreground/30'
-                                        : 'bg-muted/20 border-muted/30 opacity-60'
-                                    } ${
-                                      highlightElement?.type === 'rule' && highlightElement?.id === rule.id
-                                        ? 'ai-highlight'
-                                        : ''
-                                    }`}
-                                    onClick={() => setSelectedGroup(group)}
-                                  >
-                                    <div className={`flex h-6 w-6 items-center justify-center rounded border text-xs font-bold shrink-0 ${
-                                      rule.isActive
-                                        ? 'bg-muted border text-foreground'
-                                        : 'bg-muted/20 border-muted/30 text-muted-foreground'
-                                    }`}>
-                                      {rule.priority}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-semibold truncate">{rule.name}</div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          toggleRuleStatus(rule);
-                                        }}
-                                      >
-                                        {rule.isActive ? (
-                                          <PowerOff className="h-3 w-3" />
-                                        ) : (
-                                          <Power className="h-3 w-3" />
-                                        )}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openEditRuleDialog(rule);
-                                        }}
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteRule(rule.id);
-                                        }}
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                      <div className="ml-2 flex items-center gap-1.5">
-                                        <ArrowRight className={`h-3.5 w-3.5 ${rule.isActive ? 'text-muted-foreground' : 'text-muted-foreground/40'}`} />
-                                        <span className={`text-xs font-mono truncate max-w-[120px] ${
-                                          rule.isActive
-                                            ? 'text-foreground'
-                                            : 'text-muted-foreground'
-                                        }`}>
-                                          {group.name}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {ruleIndex < ruleset.rules.length - 1 && (
-                                    <div className="flex items-center gap-2 py-1 pl-9">
-                                      <div className="text-[10px] font-bold text-primary/60">
-                                        ↓ No match? Try next
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
+                        {groupIndex < rulesByGroup.length - 1 && (
+                          <div className="flex justify-center py-4">
+                            <div className="h-6 w-0.5 bg-border" />
+                          </div>
+                        )}
                       </div>
-                    </div>
-
-                    {rulesetIndex < rulesets.length - 1 && (
-                      <div className="flex justify-center py-3">
-                        <div className="h-8 w-0.5 bg-border" />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  })
+                )}
               </div>
 
-              {/* Column 3: Teams */}
+              {/* Column 2: All Teams */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 mb-4">
-                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <UsersIcon className="h-4 w-4 text-muted-foreground" />
                   <h2 className="text-technical text-muted-foreground">
-                    Teams
+                    All Teams
                   </h2>
                 </div>
                 {groups.map((group) => {
@@ -980,7 +910,7 @@ function RulesPageContent() {
                         <div className="grid grid-cols-2 gap-2 mb-3">
                           <div className="rounded border bg-muted/30 p-2">
                             <div className="flex items-center gap-1.5 mb-1">
-                              <Zap className="h-3 w-3 text-muted-foreground" />
+                              <Target className="h-3 w-3 text-muted-foreground" />
                               <span className="text-[9px] font-semibold text-muted-foreground uppercase">Capacity</span>
                             </div>
                             <div className="text-lg font-bold">
@@ -1061,55 +991,6 @@ function RulesPageContent() {
                 <Button type="submit">Create Ruleset</Button>
               </DialogFooter>
             </form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={triggerDialogOpen} onOpenChange={setTriggerDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Manage Triggers for {managingTriggersRuleset?.name}</DialogTitle>
-              <DialogDescription>Connect or disconnect triggers that will fire this ruleset</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              {TRIGGER_TYPES.map((trigger) => {
-                const Icon = trigger.icon;
-                const isConnected = managingTriggersRuleset?.triggers.some(
-                  (t) => t.triggerType === trigger.value
-                ) || false;
-
-                return (
-                  <div
-                    key={trigger.value}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${
-                        trigger.color === 'emerald' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600 dark:text-emerald-400' :
-                        trigger.color === 'blue' ? 'bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400' :
-                        trigger.color === 'blue' ? 'bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400' :
-                        trigger.color === 'orange' ? 'bg-orange-500/20 border-orange-500/50 text-orange-600 dark:text-orange-400' :
-                        'bg-amber-500/20 border-amber-500/50 text-amber-600 dark:text-amber-400'
-                      }`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">{trigger.label}</div>
-                        <div className="text-xs text-muted-foreground">{trigger.description}</div>
-                      </div>
-                    </div>
-                    <Button
-                      variant={isConnected ? "destructive" : "default"}
-                      size="sm"
-                      onClick={() =>
-                        toggleTrigger(managingTriggersRuleset!.id, trigger.value, isConnected)
-                      }
-                    >
-                      {isConnected ? "Disconnect" : "Connect"}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
           </DialogContent>
         </Dialog>
 
