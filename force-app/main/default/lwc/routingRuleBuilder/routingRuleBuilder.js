@@ -1,6 +1,7 @@
 import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { getObjectInfo, getPicklistValues, getPicklistValuesByRecordType } from 'lightning/uiObjectInfoApi';
+import { getListUi } from 'lightning/uiListApi';
 import { createRecord, getRecord } from 'lightning/uiRecordApi';
 
 import ROUTING_RULE_OBJECT from '@salesforce/schema/Routing_Rule__c';
@@ -9,6 +10,11 @@ import ROUTING_RULE_DESCRIPTION_FIELD from '@salesforce/schema/Routing_Rule__c.D
 import ROUTING_RULE_GROUP_FIELD from '@salesforce/schema/Routing_Rule__c.Group__c';
 import ROUTING_RULE_MATCH_LOGIC_FIELD from '@salesforce/schema/Routing_Rule__c.Match_Logic__c';
 import ROUTING_RULE_PRIORITY_FIELD from '@salesforce/schema/Routing_Rule__c.Priority__c';
+import ROUTING_RULE_ACTIVE_FIELD from '@salesforce/schema/Routing_Rule__c.Is_Active__c';
+
+import ROUTING_GROUP_OBJECT from '@salesforce/schema/Routing_Group__c';
+import ROUTING_GROUP_DESCRIPTION_FIELD from '@salesforce/schema/Routing_Group__c.Description__c';
+import ROUTING_GROUP_ACTIVE_FIELD from '@salesforce/schema/Routing_Group__c.Is_Active__c';
 
 import ROUTING_RULE_CONDITION_OBJECT from '@salesforce/schema/Routing_Rule_Condition__c';
 import CONDITION_FIELD_FIELD from '@salesforce/schema/Routing_Rule_Condition__c.Field__c';
@@ -135,6 +141,10 @@ export default class RoutingRuleBuilder extends LightningElement {
     priority: ''
   };
   groupName = '';
+  routingGroups = [];
+  routingRules = [];
+  rulesLoaded = false;
+  groupsLoaded = false;
 
   @wire(getObjectInfo, { objectApiName: ROUTING_RULE_CONDITION_OBJECT })
   handleObjectInfo({ data }) {
@@ -181,6 +191,50 @@ export default class RoutingRuleBuilder extends LightningElement {
     } else {
       this.groupName = '';
     }
+  }
+
+  @wire(getListUi, {
+    objectApiName: ROUTING_GROUP_OBJECT,
+    listViewApiName: 'All',
+    fields: [ROUTING_GROUP_NAME_FIELD, ROUTING_GROUP_DESCRIPTION_FIELD, ROUTING_GROUP_ACTIVE_FIELD]
+  })
+  handleGroupList({ data }) {
+    if (data?.records?.records) {
+      this.routingGroups = data.records.records.map((record) => ({
+        id: record.id,
+        name: record.fields?.Name?.value || 'Unnamed Group',
+        description: record.fields?.Description__c?.value || '',
+        isActive: record.fields?.Is_Active__c?.value
+      }));
+    }
+    this.groupsLoaded = true;
+  }
+
+  @wire(getListUi, {
+    objectApiName: ROUTING_RULE_OBJECT,
+    listViewApiName: 'All',
+    fields: [
+      ROUTING_RULE_NAME_FIELD,
+      ROUTING_RULE_DESCRIPTION_FIELD,
+      ROUTING_RULE_GROUP_FIELD,
+      ROUTING_RULE_MATCH_LOGIC_FIELD,
+      ROUTING_RULE_PRIORITY_FIELD,
+      ROUTING_RULE_ACTIVE_FIELD
+    ]
+  })
+  handleRuleList({ data }) {
+    if (data?.records?.records) {
+      this.routingRules = data.records.records.map((record) => ({
+        id: record.id,
+        name: record.fields?.Name?.value || 'Untitled Rule',
+        description: record.fields?.Description__c?.value || '',
+        groupId: record.fields?.Group__c?.value || '',
+        matchLogic: record.fields?.Match_Logic__c?.value || '',
+        priority: record.fields?.Priority__c?.value || '',
+        isActive: record.fields?.Is_Active__c?.value
+      }));
+    }
+    this.rulesLoaded = true;
   }
 
   handleRuleFieldChange(event) {
@@ -369,6 +423,44 @@ export default class RoutingRuleBuilder extends LightningElement {
       });
 
     return lines.concat(conditionLines);
+  }
+
+  get groupedRuleSets() {
+    const groupMap = new Map();
+    this.routingGroups.forEach((group) => {
+      groupMap.set(group.id, { ...group, rules: [] });
+    });
+
+    const unassigned = {
+      id: 'unassigned',
+      name: 'Unassigned',
+      description: 'Rules without a routing group yet.',
+      isActive: true,
+      rules: []
+    };
+
+    this.routingRules.forEach((rule) => {
+      const target = rule.groupId && groupMap.has(rule.groupId) ? groupMap.get(rule.groupId) : unassigned;
+      target.rules.push({
+        ...rule,
+        matchLogicLabel: this.getPicklistLabel(this.matchLogicOptions, rule.matchLogic),
+        statusLabel: rule.isActive ? 'Active' : 'Inactive'
+      });
+    });
+
+    const grouped = Array.from(groupMap.values()).filter((group) => group.rules.length);
+    if (unassigned.rules.length) {
+      grouped.push(unassigned);
+    }
+
+    return grouped.map((group) => ({
+      ...group,
+      ruleCount: group.rules.length
+    }));
+  }
+
+  get hasAtlasData() {
+    return this.groupedRuleSets.length > 0;
   }
 
   getPicklistLabel(options, value) {

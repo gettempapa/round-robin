@@ -163,6 +163,53 @@
       </div>
     </section>
 
+    <section class="panel atlas">
+      <div class="panel__header">
+        <h2 class="panel__title">Routing Atlas</h2>
+        <p class="panel__subtitle">
+          A live map of which rules feed each routing group or queue.
+        </p>
+      </div>
+      <template if:true={hasAtlasData}>
+        <div class="atlas__grid">
+          <template for:each={groupedRuleSets} for:item="group">
+            <div class="atlas-group" key={group.id}>
+              <div class="atlas-group__header">
+                <div>
+                  <div class="atlas-group__title">{group.name}</div>
+                  <div class="atlas-group__desc">{group.description}</div>
+                </div>
+                <div class="atlas-group__meta">{group.ruleCount} rules</div>
+              </div>
+              <div class="atlas-group__body">
+                <div class="atlas-rail"></div>
+                <div class="atlas-rules">
+                  <template for:each={group.rules} for:item="rule">
+                    <div class="atlas-rule" key={rule.id}>
+                      <div class="atlas-rule__name">{rule.name}</div>
+                      <div class="atlas-rule__meta">
+                        <span>{rule.matchLogicLabel}</span>
+                        <span>Priority {rule.priority}</span>
+                        <span>{rule.statusLabel}</span>
+                      </div>
+                      <template if:true={rule.description}>
+                        <div class="atlas-rule__desc">{rule.description}</div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template if:false={hasAtlasData}>
+        <div class="atlas__empty">
+          No routing rules yet. Create your first rule above and it will show up here.
+        </div>
+      </template>
+    </section>
+
     <section class="panel playbook">
       <div class="panel__header">
         <h2 class="panel__title">Studio Playbook</h2>

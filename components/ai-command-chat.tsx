@@ -309,8 +309,17 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
     highlightId?: string,
     highlightType?: "rule" | "contact" | "group" | "user"
   ) => {
-    const targetPath = path.split("?")[0];
-    if (pathname === targetPath) {
+    // Always navigate if path has query params (filters) - even if on same base page
+    // This ensures AI filters get applied
+    const hasQueryParams = path.includes('?');
+    const targetBasePath = path.split("?")[0];
+    const currentFullPath = typeof window !== 'undefined' ? window.location.pathname + window.location.search : pathname;
+
+    console.log('handleNavigation:', { path, currentFullPath, hasQueryParams, targetBasePath, pathname });
+
+    // Skip only if exact same full path (including query params)
+    if (currentFullPath === path) {
+      console.log('Already on exact path, skipping navigation');
       if (highlightId && highlightType) {
         setHighlightElement({ type: highlightType, id: highlightId });
       }
@@ -322,6 +331,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
     await new Promise(resolve => setTimeout(resolve, 150));
 
+    console.log('Pushing to router:', path);
     router.push(path);
 
     if (highlightId && highlightType) {
