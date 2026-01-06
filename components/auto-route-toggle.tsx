@@ -87,8 +87,10 @@ export function AutoRouteToggle() {
       // Run immediately when enabled
       runAutoRoute();
 
-      // Then run every minute
-      intervalRef.current = setInterval(runAutoRoute, 60000);
+      // Then run every 60 seconds (1 minute)
+      intervalRef.current = setInterval(() => {
+        runAutoRoute();
+      }, 60000);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -101,7 +103,7 @@ export function AutoRouteToggle() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [enabled, runAutoRoute]);
+  }, [enabled]); // Don't include runAutoRoute - it causes interval to reset
 
   // Handle toggle
   const handleToggle = (checked: boolean) => {

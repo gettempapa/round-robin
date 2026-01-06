@@ -92,16 +92,25 @@ function evaluateSingleCondition(condition: string, record: any): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const debug: any[] = [];
+
   try {
     const conn = await getSalesforceConnection();
     if (!conn) {
-      return NextResponse.json({ error: "Not connected to Salesforce" }, { status: 401 });
+      return NextResponse.json({ error: "Not connected to Salesforce", debug }, { status: 401 });
     }
+    debug.push("Connected to Salesforce");
 
     // Get the queue name to look for (default: RevOps Queue)
     const { queueName = "RevOps Queue" } = await req.json().catch(() => ({}));
+    debug.push(`Looking for queue: ${queueName}`);
 
-    // Find the queue by name
+    // Find the queue by name - also try searching all queues
+    const allQueuesResult = await conn.query(`
+      SELECT Id, Name FROM Group WHERE Type = 'Queue' LIMIT 20
+    `);
+    debug.push(`All queues in org: ${allQueuesResult.records.map((q: any) => q.Name).join(', ') || 'none'}`);
+
     const queueResult = await conn.query(`
       SELECT Id, Name FROM Group WHERE Type = 'Queue' AND Name = '${queueName}' LIMIT 1
     `);
@@ -109,12 +118,15 @@ export async function POST(req: NextRequest) {
     if (queueResult.records.length === 0) {
       return NextResponse.json({
         error: `Queue "${queueName}" not found`,
+        availableQueues: allQueuesResult.records.map((q: any) => q.Name),
         routed: 0,
         checked: 0,
+        debug,
       });
     }
 
     const queueId = (queueResult.records[0] as any).Id;
+    debug.push(`Found queue ${queueName} with ID ${queueId}`);
     console.log(`Auto-route: Found queue ${queueName} with ID ${queueId}`);
 
     // Find leads owned by this queue
@@ -127,6 +139,8 @@ export async function POST(req: NextRequest) {
     `);
 
     const leads = leadsResult.records as any[];
+    debug.push(`Found ${leads.length} leads in queue`);
+    debug.push(`Lead samples: ${leads.slice(0, 3).map((l: any) => `${l.Name} (Industry: ${l.Industry}, Source: ${l.LeadSource}, Company: ${l.Company})`).join('; ')}`);
     console.log(`Auto-route: Found ${leads.length} leads in queue`);
 
     if (leads.length === 0) {
@@ -135,6 +149,7 @@ export async function POST(req: NextRequest) {
         routed: 0,
         checked: 0,
         queueName,
+        debug,
       });
     }
 
@@ -156,29 +171,75 @@ export async function POST(req: NextRequest) {
       orderBy: { priority: 'asc' },
     });
 
+    debug.push(`Found ${rules.length} active rules`);
+    debug.push(`Rules: ${rules.map(r => `"${r.name}" (condition: ${r.soqlCondition || 'none'}, group: ${r.group?.name || 'no group'})`).join('; ')}`);
     console.log(`Auto-route: Found ${rules.length} active rules`);
 
     const results: any[] = [];
+    const noMatchReasons: any[] = [];
     let routedCount = 0;
 
     // Process each lead
     for (const lead of leads) {
       // Find first matching rule
       let matchedRule = null;
+      const leadEvaluation: any = {
+        leadName: lead.Name,
+        leadFields: {
+          Industry: lead.Industry,
+          LeadSource: lead.LeadSource,
+          Company: lead.Company,
+          AnnualRevenue: lead.AnnualRevenue,
+          NumberOfEmployees: lead.NumberOfEmployees,
+          Country: lead.Country,
+          State: lead.State,
+        },
+        ruleEvaluations: [],
+      };
 
       for (const rule of rules) {
         const condition = rule.soqlCondition || '';
-        if (!condition) continue;
+        if (!condition) {
+          leadEvaluation.ruleEvaluations.push({
+            ruleName: rule.name,
+            condition: 'none',
+            result: 'skipped - no condition',
+          });
+          continue;
+        }
 
-        if (evaluateSoqlCondition(condition, lead)) {
+        const matches = evaluateSoqlCondition(condition, lead);
+        leadEvaluation.ruleEvaluations.push({
+          ruleName: rule.name,
+          condition,
+          result: matches ? 'MATCHED' : 'no match',
+          hasGroup: !!rule.group,
+          groupMembers: rule.group?.members.length || 0,
+        });
+
+        if (matches) {
           matchedRule = rule;
           break;
         }
       }
 
+      if (!matchedRule) {
+        noMatchReasons.push(leadEvaluation);
+      }
+
+      if (matchedRule && !matchedRule.group) {
+        leadEvaluation.assignmentFailure = `Rule "${matchedRule.name}" matched but has no group assigned`;
+        noMatchReasons.push(leadEvaluation);
+      }
+
       if (matchedRule && matchedRule.group) {
         // Get next user from round-robin group (filter by active users)
         const activeMembers = matchedRule.group.members.filter(m => m.user.status === 'active');
+
+        if (activeMembers.length === 0) {
+          leadEvaluation.assignmentFailure = `Rule "${matchedRule.name}" matched but group has no active members`;
+          noMatchReasons.push(leadEvaluation);
+        }
 
         if (activeMembers.length > 0) {
           // Simple round-robin based on assignment counts - pick user with fewest assignments
@@ -252,6 +313,8 @@ export async function POST(req: NextRequest) {
 
             console.log(`Auto-route: Routed ${lead.Name} to ${assignee.user.name} via rule "${matchedRule.name}"`);
           } else {
+            leadEvaluation.assignmentFailure = `Rule "${matchedRule.name}" matched but couldn't find SF user for ${assignee.user.email}`;
+            noMatchReasons.push(leadEvaluation);
             console.log(`Auto-route: Could not find SF user for ${assignee.user.email}`);
           }
         }
@@ -265,6 +328,8 @@ export async function POST(req: NextRequest) {
       queueName,
       results,
       timestamp: new Date().toISOString(),
+      debug,
+      noMatchReasons: noMatchReasons.slice(0, 5), // Show first 5 non-matching leads with details
     });
   } catch (error) {
     console.error("Auto-route error:", error);
