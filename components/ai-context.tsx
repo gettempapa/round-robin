@@ -3,8 +3,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { AICommandChat } from "./ai-command-chat";
 
-// Chat position modes for smart repositioning
-export type ChatPositionMode = "center" | "side-right" | "side-left" | "bottom-right";
+// Chat position modes - simplified to center (modal) or side (smart positioning)
+export type ChatPositionMode = "center" | "side";
 
 export type ChatPosition = {
   mode: ChatPositionMode;

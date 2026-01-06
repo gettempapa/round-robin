@@ -152,9 +152,11 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
         console.error("Preview matches API error:", errorData);
+        setSkippedFields([]);
       }
     } catch (error) {
       console.error("Failed to load matching records:", error);
+      setSkippedFields([]);
     } finally {
       setLoadingMatches(false);
     }
@@ -279,6 +281,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
     setEditingName(false);
     setMatchingContacts([]);
     setShowMatches(false);
+    setSkippedFields([]);
   };
 
   // Smart autocomplete logic
@@ -402,9 +405,9 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <DialogTitle className="text-2xl font-semibold">Rule Builder</DialogTitle>
+                  <DialogTitle className="text-2xl font-semibold">AI Rule Builder</DialogTitle>
                   <DialogDescription className="text-base mt-1">
-                    Describe your routing requirement
+                    Describe your routing requirement in plain English
                   </DialogDescription>
                 </div>
               </div>
@@ -736,14 +739,14 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                           <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-lg">Assignment</h4>
-                          <p className="text-xs text-muted-foreground">Target group</p>
+                          <h4 className="font-semibold text-lg">Routing Group</h4>
+                          <p className="text-xs text-muted-foreground">Recommended target</p>
                         </div>
                       </div>
                       <div className="space-y-4">
                         <div className="bg-muted/50 rounded-lg p-4 border border-border/50">
                           <Label htmlFor="group" className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-3">
-                            Assign To
+                            Recommend Group
                           </Label>
                           <select
                             id="group"

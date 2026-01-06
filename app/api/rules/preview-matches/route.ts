@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         count: 0,
         contacts: [],
+        skippedFields: Array.from(skippedFields),
       });
     }
 

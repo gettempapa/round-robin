@@ -98,11 +98,11 @@ type Group = {
 };
 
 const TRIGGER_TYPES = [
-  { value: "contact_created", label: "New Contact", icon: UserPlus, color: "emerald", description: "Triggers when a new contact is created" },
-  { value: "contact_updated", label: "Contact Updated", icon: RefreshCw, color: "blue", description: "Triggers when contact data changes" },
-  { value: "form_submitted", label: "Form Submission", icon: FileText, color: "blue", description: "Triggers on form submissions" },
+  { value: "contact_created", label: "Record Created", icon: UserPlus, color: "emerald", description: "Triggers when a new lead, contact, or account is created" },
+  { value: "contact_updated", label: "Record Updated", icon: RefreshCw, color: "blue", description: "Triggers when routing context changes" },
+  { value: "form_submitted", label: "Form Submission", icon: FileText, color: "blue", description: "Triggers on inbound form submissions" },
   { value: "api_webhook", label: "API / Webhook", icon: Webhook, color: "orange", description: "Triggers from external API calls" },
-  { value: "manual", label: "Manual Assignment", icon: Hand, color: "amber", description: "Triggers on manual lead routing" },
+  { value: "manual", label: "Manual Routing", icon: Hand, color: "amber", description: "Triggers on manual routing requests" },
 ];
 
 const OPERATORS = [
@@ -462,7 +462,7 @@ function RulesPageContent() {
               className="border border-blue-500/30 hover:border-blue-500/50"
             >
               <Sparkles className="mr-2 h-3.5 w-3.5 text-blue-500" />
-              AI Wizard
+              AI Builder
             </Button>
             <Dialog open={ruleDialogOpen} onOpenChange={(o) => { setRuleDialogOpen(o); if (!o) resetRuleForm(); }}>
               <DialogTrigger asChild>
@@ -487,7 +487,7 @@ function RulesPageContent() {
                         value={ruleFormData.name}
                         onChange={(e) => setRuleFormData({ ...ruleFormData, name: e.target.value })}
                         required
-                        placeholder="e.g., Route Enterprise Leads"
+                        placeholder="e.g., Route Enterprise Records"
                       />
                     </div>
                     <div>

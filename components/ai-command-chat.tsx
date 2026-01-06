@@ -49,6 +49,13 @@ type AIChatProps = {
   initialMessage?: string;
 };
 
+// Constants
+const SIDEBAR_WIDTH = 256; // w-64
+const CHAT_PADDING = 16;
+const HEADER_HEIGHT = 64;
+const CHAT_WIDTH = 380;
+const CHAT_HEIGHT = 420;
+
 // Spring animation config for smooth, magical feel
 const springConfig = {
   type: "spring" as const,
@@ -56,26 +63,12 @@ const springConfig = {
   stiffness: 300,
 };
 
-// Determine best chat position based on navigation target
-function getPositionForPage(page: string): ChatPositionMode {
-  switch (page) {
-    case "rules":
-      return "side-left";
-    case "contacts":
-    case "users":
-    case "groups":
-    case "activity":
-      return "side-right";
-    default:
-      return "side-right";
-  }
-}
-
 export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [highlightedElementRect, setHighlightedElementRect] = useState<DOMRect | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -85,64 +78,107 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
   const {
     chatPosition,
     setChatPosition,
+    highlightElement,
     setHighlightElement,
     originRect,
   } = useAI();
 
   const activeConversation = conversations.find(c => c.id === activeConversationId);
 
-  // Calculate target position based on mode
-  const getTargetPosition = useCallback((mode: ChatPositionMode) => {
+  // Watch for highlighted element and get its position
+  useEffect(() => {
+    if (!highlightElement) {
+      setHighlightedElementRect(null);
+      return;
+    }
+
+    // Small delay to let the element render after navigation
+    const timer = setTimeout(() => {
+      const el = document.querySelector('.ai-highlight');
+      if (el) {
+        setHighlightedElementRect(el.getBoundingClientRect());
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [highlightElement, pathname]);
+
+  // Calculate smart position that avoids highlighted element and sidebar
+  const getSmartPosition = useCallback(() => {
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
 
-    const chatWidth = mode === "center" ? Math.min(560, vw - 32) : 340;
-    const chatHeight = mode === "center" ? Math.min(500, vh - 120) : vh - 96; // top-20 (80px) + bottom-4 (16px)
-
-    switch (mode) {
-      case "center":
-        return {
-          x: (vw - chatWidth) / 2,
-          y: (vh - chatHeight) / 2,
-          width: chatWidth,
-          height: chatHeight,
-        };
-      case "side-right":
-        return {
-          x: vw - chatWidth - 16, // right-4
-          y: 80, // top-20
-          width: chatWidth,
-          height: chatHeight,
-        };
-      case "side-left":
-        return {
-          x: 280, // left-[280px] (after sidebar)
-          y: 80,
-          width: chatWidth,
-          height: chatHeight,
-        };
-      case "bottom-right":
-        return {
-          x: vw - 400 - 16,
-          y: vh - 300 - 16,
-          width: 400,
-          height: 300,
-        };
-      default:
-        return {
-          x: (vw - chatWidth) / 2,
-          y: (vh - chatHeight) / 2,
-          width: chatWidth,
-          height: chatHeight,
-        };
+    // Center position (for when chat is first opened)
+    if (chatPosition.mode === "center") {
+      const centerWidth = Math.min(560, vw - 32);
+      const centerHeight = Math.min(500, vh - 120);
+      return {
+        x: (vw - centerWidth) / 2,
+        y: (vh - centerHeight) / 2,
+        width: centerWidth,
+        height: centerHeight,
+      };
     }
-  }, []);
+
+    // For side positions, use consistent chat dimensions
+    const chatWidth = CHAT_WIDTH;
+    const chatHeight = CHAT_HEIGHT;
+
+    // Safe bounds (avoiding sidebar and edges)
+    const minX = SIDEBAR_WIDTH + CHAT_PADDING;
+    const maxX = vw - chatWidth - CHAT_PADDING;
+    const minY = HEADER_HEIGHT + CHAT_PADDING;
+    const maxY = vh - chatHeight - CHAT_PADDING;
+
+    // Default position: bottom-right (safe spot)
+    let x = maxX;
+    let y = maxY;
+
+    // If we have a highlighted element, position relative to it
+    if (highlightedElementRect) {
+      const elCenterX = highlightedElementRect.left + highlightedElementRect.width / 2;
+      const elCenterY = highlightedElementRect.top + highlightedElementRect.height / 2;
+
+      // Try to position chat above the highlighted element
+      const aboveY = highlightedElementRect.top - chatHeight - CHAT_PADDING;
+
+      // Try to position chat to the right of the highlighted element
+      const rightX = highlightedElementRect.right + CHAT_PADDING;
+
+      // Try to position chat to the left of the highlighted element (but after sidebar)
+      const leftX = highlightedElementRect.left - chatWidth - CHAT_PADDING;
+
+      // Decision logic: prefer above, then right, then bottom-right default
+      if (aboveY >= minY) {
+        // Can fit above - center horizontally relative to element
+        y = aboveY;
+        x = Math.max(minX, Math.min(maxX, elCenterX - chatWidth / 2));
+      } else if (rightX + chatWidth <= vw - CHAT_PADDING) {
+        // Can fit to the right
+        x = rightX;
+        y = Math.max(minY, Math.min(maxY, elCenterY - chatHeight / 2));
+      } else if (leftX >= minX) {
+        // Can fit to the left (after sidebar)
+        x = leftX;
+        y = Math.max(minY, Math.min(maxY, elCenterY - chatHeight / 2));
+      } else {
+        // Default to bottom-right, but try not to overlap
+        // If element is in bottom-right, move chat to top-right
+        if (elCenterY > vh / 2 && elCenterX > vw / 2) {
+          y = minY;
+        }
+      }
+    }
+
+    // Ensure within bounds
+    x = Math.max(minX, Math.min(maxX, x));
+    y = Math.max(minY, Math.min(maxY, y));
+
+    return { x, y, width: chatWidth, height: chatHeight };
+  }, [chatPosition.mode, highlightedElementRect]);
 
   // Get current target position
-  const targetPos = useMemo(() =>
-    getTargetPosition(chatPosition.mode),
-    [chatPosition.mode, getTargetPosition]
-  );
+  const targetPos = useMemo(() => getSmartPosition(), [getSmartPosition]);
 
   // Calculate initial position from origin rect
   const initialPos = useMemo(() => {
@@ -157,16 +193,17 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
       };
     }
     // Fallback: start from center but scaled down
-    const target = getTargetPosition("center");
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
     return {
-      x: target.x + target.width / 2 - 50,
-      y: target.y - 50,
+      x: vw / 2 - 50,
+      y: vh / 2 - 100,
       width: 100,
       height: 50,
       opacity: 0,
       scale: 0.8,
     };
-  }, [originRect, getTargetPosition]);
+  }, [originRect]);
 
   // Handle initial message from header input
   const initialMessageHandledRef = useRef<string | null>(null);
@@ -236,17 +273,15 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
     }
   }, [isOpen]);
 
-  // Watch for route changes and reposition chat to stay out of the way
+  // Watch for route changes and switch to side mode
   useEffect(() => {
     if (!isOpen) return;
 
-    // Determine optimal position based on current page
     const page = pathname?.split("/")[1] || "";
-    const optimalPosition = getPositionForPage(page);
 
-    // Only move to side if we're currently centered and navigating away
+    // Move to side mode when navigating away from initial centered view
     if (chatPosition.mode === "center" && page) {
-      setChatPosition({ mode: optimalPosition });
+      setChatPosition({ mode: "side" });
     }
   }, [pathname, isOpen]);
 
@@ -282,10 +317,10 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
       return;
     }
 
-    const targetPosition = getPositionForPage(page);
-    setChatPosition({ mode: targetPosition });
+    // Move to side mode before navigation
+    setChatPosition({ mode: "side" });
 
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     router.push(path);
 
@@ -415,7 +450,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
 
   const togglePosition = () => {
     if (chatPosition.mode === "center") {
-      setChatPosition({ mode: "side-right" });
+      setChatPosition({ mode: "side" });
     } else {
       setChatPosition({ mode: "center" });
     }
@@ -442,7 +477,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
             )}
           </AnimatePresence>
 
-          {/* Chat panel - using absolute pixel positioning for smooth animation */}
+          {/* Chat panel - using smart positioning */}
           <motion.div
             key="chat-panel"
             initial={{
