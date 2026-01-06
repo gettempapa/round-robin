@@ -56,6 +56,12 @@ export async function GET(req: NextRequest) {
       filters.industry = searchParams.get('industry');
     }
 
+    // SOQL condition from AI (takes precedence)
+    const soqlCondition = searchParams.get('soql');
+    if (soqlCondition) {
+      filters.soqlCondition = soqlCondition;
+    }
+
     // Query records based on type
     let result;
     if (recordType === 'contact') {

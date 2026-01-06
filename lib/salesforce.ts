@@ -173,6 +173,7 @@ export async function queryContacts(options: {
     ownerId?: string;
     leadSource?: string;
     industry?: string;
+    soqlCondition?: string;  // AI-generated SOQL condition
   };
 }) {
   const conn = await getSalesforceConnection();
@@ -184,6 +185,11 @@ export async function queryContacts(options: {
 
   // Build WHERE clause
   const whereConditions: string[] = [];
+
+  // SOQL condition from AI takes precedence
+  if (filters?.soqlCondition) {
+    whereConditions.push(`(${filters.soqlCondition})`);
+  }
 
   if (search) {
     const escapedSearch = search.replace(/'/g, "\\'");
@@ -269,6 +275,7 @@ export async function queryLeads(options: {
     leadSource?: string;
     status?: string;
     industry?: string;
+    soqlCondition?: string;  // AI-generated SOQL condition
   };
 }) {
   const conn = await getSalesforceConnection();
@@ -280,6 +287,11 @@ export async function queryLeads(options: {
 
   // Build WHERE clause
   const whereConditions: string[] = [];
+
+  // SOQL condition from AI takes precedence
+  if (filters?.soqlCondition) {
+    whereConditions.push(`(${filters.soqlCondition})`);
+  }
 
   if (search) {
     const escapedSearch = search.replace(/'/g, "\\'");
@@ -374,6 +386,7 @@ export async function queryAllRecords(options: {
     hasOwner?: boolean;
     ownerId?: string;
     leadSource?: string;
+    soqlCondition?: string;  // AI-generated SOQL condition
   };
 }) {
   const { recordType = 'all', limit = 25, ...rest } = options;

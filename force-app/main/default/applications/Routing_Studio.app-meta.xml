@@ -3,6 +3,8 @@
   <label>Routing Studio</label>
   <description>AI-first routing configuration for RevOps and Business Systems.</description>
   <navType>Standard</navType>
+  <formFactors>Large</formFactors>
+  <formFactors>Small</formFactors>
   <uiType>Lightning</uiType>
   <tabs>Routing_Studio</tabs>
   <tabs>Routing_Rule__c</tabs>

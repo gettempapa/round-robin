@@ -437,13 +437,21 @@ Common Salesforce fields for Contacts: LeadSource, MailingCountry, MailingState,
   // Query/Display tools
   {
     name: "listContacts",
-    description: "List Salesforce contacts and leads with optional filtering. Returns data that will be displayed as a rich contact list UI. Data comes directly from Salesforce.",
+    description: `Search and filter Salesforce contacts/leads. NAVIGATES to the contacts page with filters applied so results appear in the main UI.
+
+Use 'soqlCondition' for precise SOQL filtering:
+- "Name LIKE 'N%'" - names starting with N
+- "Name LIKE '%Smith'" - names ending with Smith
+- "Industry = 'Technology'" - exact match
+- "OwnerId = null" - unassigned records
+
+This tool navigates to /contacts with the filter applied - results show in the page, not the chat.`,
     input_schema: {
       type: "object" as const,
       properties: {
-        filter: { type: "string", enum: ["all", "unassigned", "assigned", "recent"], description: "Filter type - 'unassigned' shows records with no Owner" },
+        filter: { type: "string", enum: ["all", "unassigned", "assigned", "recent"], description: "Basic filter type" },
+        soqlCondition: { type: "string", description: "SOQL WHERE clause for precise filtering. E.g., \"Name LIKE 'N%'\" for names starting with N" },
         limit: { type: "number", description: "Max contacts to return" },
-        search: { type: "string", description: "Search term for name/email/company" },
         recordType: { type: "string", enum: ["all", "contact", "lead"], description: "Type of Salesforce record to query" },
       },
     },

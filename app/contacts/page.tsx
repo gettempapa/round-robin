@@ -50,8 +50,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  X,
+  Sparkles,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAI } from "@/components/ai-context";
 import { ContactTimeline } from "@/components/contact-timeline";
@@ -90,20 +93,44 @@ type RoundRobinGroup = {
   _count?: { members: number };
 };
 
-export default function ContactsPage() {
+function ContactsPageContent() {
   const { openChat } = useAI();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [records, setRecords] = useState<SalesforceRecord[]>([]);
   const [sfUsers, setSfUsers] = useState<SalesforceUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [totalRecords, setTotalRecords] = useState(0);
 
-  // Filters
+  // URL-driven filters (from AI)
+  const soqlFilter = searchParams.get("soql");
+  const urlRecordType = searchParams.get("type") as 'all' | 'contact' | 'lead' | null;
+  const urlOwnerFilter = searchParams.get("filter") as 'all' | 'assigned' | 'unassigned' | null;
+
+  // Local filters
   const [search, setSearch] = useState("");
-  const [recordType, setRecordType] = useState<'all' | 'contact' | 'lead'>('all');
-  const [ownerFilter, setOwnerFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
+  const [recordType, setRecordType] = useState<'all' | 'contact' | 'lead'>(urlRecordType || 'all');
+  const [ownerFilter, setOwnerFilter] = useState<'all' | 'assigned' | 'unassigned'>(
+    urlOwnerFilter === 'unassigned' ? 'unassigned' : urlOwnerFilter === 'assigned' ? 'assigned' : 'all'
+  );
   const [page, setPage] = useState(0);
   const pageSize = 25;
+
+  // Sync URL params to local state
+  useEffect(() => {
+    if (urlRecordType && urlRecordType !== recordType) {
+      setRecordType(urlRecordType);
+    }
+    if (urlOwnerFilter && urlOwnerFilter !== ownerFilter) {
+      setOwnerFilter(urlOwnerFilter);
+    }
+  }, [urlRecordType, urlOwnerFilter]);
+
+  // Clear SOQL filter
+  const clearSoqlFilter = () => {
+    router.push('/contacts');
+  };
 
   // Assignment dialog
   const [assigningRecord, setAssigningRecord] = useState<SalesforceRecord | null>(null);
@@ -123,7 +150,7 @@ export default function ContactsPage() {
     fetchRecords();
     fetchSalesforceUsers();
     fetchGroups();
-  }, [search, recordType, ownerFilter, page]);
+  }, [search, recordType, ownerFilter, page, soqlFilter]);
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -134,6 +161,11 @@ export default function ContactsPage() {
       params.set('type', recordType);
 
       if (search) params.set('search', search);
+
+      // SOQL filter from AI takes precedence
+      if (soqlFilter) {
+        params.set('soql', soqlFilter);
+      }
 
       if (ownerFilter === 'assigned') {
         params.set('hasOwner', 'true');
@@ -298,6 +330,25 @@ export default function ContactsPage() {
           </div>
         </div>
 
+        {/* AI Filter Indicator */}
+        {soqlFilter && (
+          <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">AI Filter:</span>
+            <code className="text-sm bg-background px-2 py-0.5 rounded border">
+              {soqlFilter}
+            </code>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSoqlFilter}
+              className="h-6 w-6 p-0 ml-auto"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-sm">
@@ -307,10 +358,11 @@ export default function ContactsPage() {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
               className="pl-9"
+              disabled={!!soqlFilter}
             />
           </div>
 
-          <Select value={recordType} onValueChange={(v: any) => { setRecordType(v); setPage(0); }}>
+          <Select value={recordType} onValueChange={(v: any) => { setRecordType(v); setPage(0); }} disabled={!!soqlFilter}>
             <SelectTrigger className="w-[140px]">
               <SelectValue />
             </SelectTrigger>
@@ -321,7 +373,7 @@ export default function ContactsPage() {
             </SelectContent>
           </Select>
 
-          <Select value={ownerFilter} onValueChange={(v: any) => { setOwnerFilter(v); setPage(0); }}>
+          <Select value={ownerFilter} onValueChange={(v: any) => { setOwnerFilter(v); setPage(0); }} disabled={!!soqlFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue />
             </SelectTrigger>
@@ -728,5 +780,19 @@ export default function ContactsPage() {
         </DialogContent>
       </Dialog>
     </DashboardLayout>
+  );
+}
+
+export default function ContactsPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <div className="flex items-center justify-center py-24">
+          <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-solid border-primary border-r-transparent"></div>
+        </div>
+      </DashboardLayout>
+    }>
+      <ContactsPageContent />
+    </Suspense>
   );
 }

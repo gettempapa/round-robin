@@ -1,6 +1,6 @@
 import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { getObjectInfo, getPicklistValuesByRecordType } from 'lightning/uiObjectInfoApi';
+import { getObjectInfo, getPicklistValues, getPicklistValuesByRecordType } from 'lightning/uiObjectInfoApi';
 import { createRecord, getRecord } from 'lightning/uiRecordApi';
 
 import ROUTING_RULE_OBJECT from '@salesforce/schema/Routing_Rule__c';
@@ -28,6 +28,41 @@ const DEFAULT_ROW = () => ({
 });
 
 export default class RoutingRuleBuilder extends LightningElement {
+  sampleRules = [
+    {
+      id: 'inbound-enterprise',
+      label: 'Inbound Enterprise',
+      description: 'Route high-intent inbound leads with 500+ employees.',
+      matchLogic: 'AND',
+      priority: '10',
+      conditions: [
+        { field: 'inboundChannel', operator: 'equals', value: 'Web' },
+        { field: 'companySize', operator: 'greaterThan', value: '500' }
+      ]
+    },
+    {
+      id: 'midmarket-emea',
+      label: 'Mid-Market EMEA',
+      description: 'Send EMEA mid-market to the regional pod.',
+      matchLogic: 'AND',
+      priority: '20',
+      conditions: [
+        { field: 'region', operator: 'equals', value: 'EMEA' },
+        { field: 'accountTier', operator: 'equals', value: 'Mid-Market' }
+      ]
+    },
+    {
+      id: 'partner-contacts',
+      label: 'Partner/Alliances',
+      description: 'Keep partner-sourced contacts together.',
+      matchLogic: 'OR',
+      priority: '30',
+      conditions: [
+        { field: 'leadSource', operator: 'contains', value: 'Partner' },
+        { field: 'department', operator: 'equals', value: 'Alliances' }
+      ]
+    }
+  ];
   ruleObjectApiName = ROUTING_RULE_OBJECT;
   ruleNameField = ROUTING_RULE_NAME_FIELD;
   ruleDescriptionField = ROUTING_RULE_DESCRIPTION_FIELD;
@@ -66,23 +101,26 @@ export default class RoutingRuleBuilder extends LightningElement {
   }
 
   @wire(getPicklistValuesByRecordType, {
-    objectApiName: ROUTING_RULE_CONDITION_OBJECT,
-    recordTypeId: '$recordTypeId'
-  })
-  handlePicklists({ data }) {
-    if (data?.picklistFieldValues) {
-      this.fieldOptions = data.picklistFieldValues.Field__c?.values || [];
-      this.operatorOptions = data.picklistFieldValues.Operator__c?.values || [];
-    }
-  }
-
-  @wire(getPicklistValuesByRecordType, {
     objectApiName: ROUTING_RULE_OBJECT,
     recordTypeId: '$ruleRecordTypeId'
   })
-  handleRulePicklists({ data }) {
+  handlePicklists({ data }) {
     if (data?.picklistFieldValues) {
       this.matchLogicOptions = data.picklistFieldValues.Match_Logic__c?.values || [];
+    }
+  }
+
+  @wire(getPicklistValues, { recordTypeId: '$recordTypeId', fieldApiName: CONDITION_FIELD_FIELD })
+  handleFieldPicklists({ data }) {
+    if (data?.values) {
+      this.fieldOptions = data.values;
+    }
+  }
+
+  @wire(getPicklistValues, { recordTypeId: '$recordTypeId', fieldApiName: CONDITION_OPERATOR_FIELD })
+  handleOperatorPicklists({ data }) {
+    if (data?.values) {
+      this.operatorOptions = data.values;
     }
   }
 
@@ -130,6 +168,27 @@ export default class RoutingRuleBuilder extends LightningElement {
     this.isSaving = true;
     const fields = event.detail.fields;
     event.target.submit(fields);
+  }
+
+  applySample(event) {
+    const sampleId = event.currentTarget.dataset.sampleId;
+    const sample = this.sampleRules.find((rule) => rule.id === sampleId);
+    if (!sample) return;
+
+    this.ruleDraft = {
+      ...this.ruleDraft,
+      name: sample.label,
+      description: sample.description,
+      matchLogic: sample.matchLogic,
+      priority: sample.priority
+    };
+
+    this.conditionRows = sample.conditions.map((condition) => ({
+      id: `row-${rowSeed++}`,
+      field: condition.field,
+      operator: condition.operator,
+      value: condition.value
+    }));
   }
 
   async handleRuleSuccess(event) {
@@ -199,6 +258,24 @@ export default class RoutingRuleBuilder extends LightningElement {
       priority: ''
     };
     this.groupName = '';
+  }
+
+  get guidanceTips() {
+    const tips = [];
+    if (!this.ruleDraft.groupId) {
+      tips.push('Pick a routing group so the rule has a destination.');
+    }
+    if (!this.ruleDraft.matchLogic) {
+      tips.push('Set match logic to AND or OR to control how conditions combine.');
+    }
+    const hasConditions = this.conditionRows.some((row) => row.field && row.operator);
+    if (!hasConditions) {
+      tips.push('Add at least one condition to describe who qualifies.');
+    }
+    if (tips.length === 0) {
+      tips.push('Looks good. Create the rule when you are ready.');
+    }
+    return tips;
   }
 
   get previewLines() {

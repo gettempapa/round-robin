@@ -174,69 +174,48 @@ export async function executeToolCall(
       }
 
       case "listContacts": {
-        const { filter = "all", limit = 10, search, recordType = "all" } = toolInput;
+        const { filter = "all", limit = 10, soqlCondition, recordType = "all" } = toolInput;
 
-        // Check if Salesforce is connected
-        const sfStatus = await checkSalesforceConnection();
-        if (!sfStatus.connected) {
-          return {
-            success: false,
-            error: "Salesforce is not connected. Please connect your Salesforce account first.",
-          };
+        // Build URL params for the contacts page
+        const params = new URLSearchParams();
+        if (filter && filter !== "all") {
+          params.set("filter", filter);
+        }
+        if (soqlCondition) {
+          params.set("soql", soqlCondition);
+        }
+        if (recordType && recordType !== "all") {
+          params.set("type", recordType);
+        }
+        if (limit && limit !== 10) {
+          params.set("limit", limit.toString());
         }
 
-        // Build filters for Salesforce query
-        const filters: any = {};
-        if (filter === "unassigned") {
-          filters.hasOwner = false;
-        } else if (filter === "assigned") {
-          filters.hasOwner = true;
-        }
+        const queryString = params.toString();
+        const path = queryString ? `/contacts?${queryString}` : "/contacts";
 
-        try {
-          const result = await queryAllRecords({
-            limit,
-            search,
-            recordType: recordType as 'all' | 'contact' | 'lead',
-            filters,
-          });
-
-          // Transform Salesforce records to match expected contact format
-          const contacts = result.records.map((record: any) => ({
-            id: record.id,
-            name: record.name,
-            email: record.email,
-            company: record.company,
-            phone: record.phone,
-            leadSource: record.leadSource,
-            industry: record.industry,
-            _type: record._type,
-            owner: record.owner,
-            assignments: record.owner ? [{
-              user: { id: record.owner.id, name: record.owner.name, email: record.owner.email },
-              group: null,
-            }] : [],
-          }));
-
-          return {
-            success: true,
-            data: { contacts, total: result.totalSize, showing: contacts.length },
-            uiComponent: {
-              type: "contactList",
-              props: {
-                contacts,
-                total: result.totalSize,
-                filter,
-                actions: ["assign", "view"],
-              },
+        // Return navigation to contacts page with filter applied
+        // The contacts page will read the URL params and display filtered results
+        return {
+          success: true,
+          data: {
+            path,
+            filter,
+            soqlCondition,
+            recordType,
+            message: soqlCondition
+              ? `Showing records matching: ${soqlCondition}`
+              : `Showing ${filter} ${recordType === "all" ? "records" : recordType + "s"}`
+          },
+          uiComponent: {
+            type: "navigation",
+            props: {
+              path,
+              label: "View filtered results",
+              chatPosition: "side-right",
             },
-          };
-        } catch (error) {
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Failed to fetch contacts from Salesforce",
-          };
-        }
+          },
+        };
       }
 
       // ============ ASSIGNMENT OPERATIONS ============
