@@ -850,10 +850,17 @@ export async function getRecordTimeline(recordId: string): Promise<{
     console.log('Field history not available');
   }
 
-  // 3. Get Tasks - query by WhoId, and also by related Lead/Contact email
+  // 3. Get Tasks and Events - query by WhoId and related records
   try {
-    // Build a list of related IDs to query
-    const relatedIds = [recordId];
+    // Build a list of related IDs to query (for WhoId - person records)
+    const whoIds = [recordId];
+    // Also collect Account IDs for WhatId queries (object records)
+    const whatIds: string[] = [];
+
+    // If this is a Contact with an Account, include the Account
+    if (isContact && record.Account?.Id) {
+      whatIds.push(record.Account.Id);
+    }
 
     // If this is a Contact, also check for tasks on related Leads with same email
     // If this is a Lead, also check for tasks on related Contacts with same email
@@ -862,35 +869,50 @@ export async function getRecordTimeline(recordId: string): Promise<{
         if (isLead) {
           // Find contacts with same email
           const contactsWithEmail = await conn.query(
-            `SELECT Id FROM Contact WHERE Email = '${record.Email}' LIMIT 5`
+            `SELECT Id, AccountId FROM Contact WHERE Email = '${record.Email}' LIMIT 5`
           );
-          relatedIds.push(...(contactsWithEmail.records as any[]).map(c => c.Id));
+          for (const c of contactsWithEmail.records as any[]) {
+            whoIds.push(c.Id);
+            if (c.AccountId) whatIds.push(c.AccountId);
+          }
         } else {
           // Find leads with same email
           const leadsWithEmail = await conn.query(
             `SELECT Id FROM Lead WHERE Email = '${record.Email}' AND IsConverted = false LIMIT 5`
           );
-          relatedIds.push(...(leadsWithEmail.records as any[]).map(l => l.Id));
+          whoIds.push(...(leadsWithEmail.records as any[]).map(l => l.Id));
         }
       } catch (e) {
         // Ignore - just use the primary record ID
       }
     }
 
-    const whoIdFilter = relatedIds.map(id => `'${id}'`).join(',');
+    // Build WHERE clause - check WhoId OR WhatId
+    const whoIdFilter = whoIds.map(id => `'${id}'`).join(',');
+    let whereClause = `WhoId IN (${whoIdFilter})`;
+    if (whatIds.length > 0) {
+      const whatIdFilter = whatIds.map(id => `'${id}'`).join(',');
+      whereClause = `(${whereClause} OR WhatId IN (${whatIdFilter}))`;
+    }
+
+    // Query Tasks
     const taskQuery = `
       SELECT Id, Subject, Status, Priority, Description, ActivityDate,
-             CreatedDate, Owner.Name, WhoId, Type
+             CreatedDate, Owner.Name, WhoId, WhatId, Type
       FROM Task
-      WHERE WhoId IN (${whoIdFilter})
+      WHERE ${whereClause}
       ORDER BY CreatedDate DESC
       LIMIT 50
     `;
-    console.log('Querying tasks for IDs:', relatedIds);
+    console.log('Querying tasks with:', whereClause);
     const taskResult = await conn.query(taskQuery);
     console.log('Task results:', taskResult.totalSize, 'records');
 
+    const seenTaskIds = new Set<string>();
     for (const task of taskResult.records as any[]) {
+      if (seenTaskIds.has(task.Id)) continue;
+      seenTaskIds.add(task.Id);
+
       const isCall = task.Type === 'Call' || task.Subject?.toLowerCase().includes('call');
       const isEmail = task.Type === 'Email' || task.Subject?.toLowerCase().includes('email');
 
@@ -907,19 +929,23 @@ export async function getRecordTimeline(recordId: string): Promise<{
       });
     }
 
-    // Also query Events with same filter
+    // Query Events
     const eventQuery = `
       SELECT Id, Subject, Description, StartDateTime, EndDateTime,
-             CreatedDate, Owner.Name, WhoId, Type, Location
+             CreatedDate, Owner.Name, WhoId, WhatId, Type, Location
       FROM Event
-      WHERE WhoId IN (${whoIdFilter})
+      WHERE ${whereClause}
       ORDER BY CreatedDate DESC
       LIMIT 50
     `;
     const eventResult = await conn.query(eventQuery);
     console.log('Event results:', eventResult.totalSize, 'records');
 
+    const seenEventIds = new Set<string>();
     for (const event of eventResult.records as any[]) {
+      if (seenEventIds.has(event.Id)) continue;
+      seenEventIds.add(event.Id);
+
       timeline.push({
         id: event.Id,
         type: 'event',
