@@ -15,7 +15,9 @@
       "Bash(npx prisma db push:*)",
       "Bash(printf:*)",
       "Bash(find:*)",
-      "Bash({} ;)"
+      "Bash({} ;)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
