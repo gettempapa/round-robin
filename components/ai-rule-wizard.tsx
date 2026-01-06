@@ -28,7 +28,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Progress } from "@/components/ui/progress";
+import { ROUTING_FIELDS, getRoutingFieldLabel } from "@/lib/routing-context";
 
 type RuleSuggestion = {
   name: string;
@@ -45,7 +45,7 @@ type RuleSuggestion = {
   explanation: string;
 };
 
-type Contact = {
+type RoutingRecord = {
   id: string;
   name: string;
   email: string | null;
@@ -80,14 +80,15 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
   const [selectedIndex, setSelectedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Matching contacts state
-  const [matchingContacts, setMatchingContacts] = useState<Contact[]>([]);
+  // Matching records state
+  const [matchingContacts, setMatchingContacts] = useState<RoutingRecord[]>([]);
   const [matchCount, setMatchCount] = useState(0);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [showMatches, setShowMatches] = useState(false);
   const [createdRuleId, setCreatedRuleId] = useState<string | null>(null);
   const [showEnrollSuccess, setShowEnrollSuccess] = useState(false);
+  const [skippedFields, setSkippedFields] = useState<string[]>([]);
 
   // Handle initial prompt from URL/AI chat
   useEffect(() => {
@@ -121,7 +122,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
         setSelectedGroupId(result.suggestion.groupId || "");
         setStep(2);
 
-        // Load matching contacts
+        // Load matching records
         loadMatchingContacts(result.suggestion.conditions, result.suggestion.conditionLogic);
       } else {
         toast.error("Failed to analyze your request");
@@ -144,15 +145,16 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Matching contacts response:", data);
+        console.log("Matching records response:", data);
         setMatchingContacts(data.contacts || []);
         setMatchCount(data.count || 0);
+        setSkippedFields(data.skippedFields || []);
       } else {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
         console.error("Preview matches API error:", errorData);
       }
     } catch (error) {
-      console.error("Failed to load matching contacts:", error);
+      console.error("Failed to load matching records:", error);
     } finally {
       setLoadingMatches(false);
     }
@@ -176,17 +178,17 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
 
       if (response.ok) {
         const data = await response.json();
-        toast.success(`Enrolled ${data.enrolled} existing contacts`);
+        toast.success(`Enrolled ${data.enrolled} existing records`);
         setShowEnrollSuccess(true);
         setTimeout(() => {
           handleClose();
           onRuleCreated();
         }, 1500);
       } else {
-        toast.error("Failed to enroll contacts");
+        toast.error("Failed to enroll records");
       }
     } catch (error) {
-      toast.error("Failed to enroll contacts");
+      toast.error("Failed to enroll records");
     } finally {
       setEnrolling(false);
     }
@@ -267,6 +269,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
     setShowMatches(false);
     setCreatedRuleId(null);
     setShowEnrollSuccess(false);
+    setSkippedFields([]);
     onOpenChange(false);
   };
 
@@ -434,7 +437,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                     <textarea
                       ref={textareaRef}
                       id="description"
-                      placeholder="Describe the routing logic you need (e.g., Route inbound leads from the pricing page who work at companies with 500+ employees to the enterprise team)"
+                      placeholder="Describe the routing logic you need (e.g., Route inbound leads from the pricing page at companies with 500+ employees to the enterprise team)"
                       value={userInput}
                       onChange={handleInputChange}
                       onKeyDown={handleKeyDown}
@@ -475,15 +478,38 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                   </p>
                 </div>
 
+                <Card className="border border-border/50 bg-muted/20">
+                  <CardContent className="pt-5 pb-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-muted-foreground">Routing context fields</p>
+                        <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                          Lead · Contact · Account
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {ROUTING_FIELDS.map((field) => (
+                          <Badge key={field.value} variant="secondary" className="text-[10px]">
+                            {field.label}
+                          </Badge>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Matching to existing accounts and duplicates happens automatically.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card className="border border-border/50 bg-muted/30">
                   <CardContent className="pt-5 pb-5">
                     <div className="space-y-3">
                       <p className="text-sm font-medium text-muted-foreground">Example patterns:</p>
                       <div className="grid gap-2">
                         {[
-                          "Route inbound leads from the pricing page who work at companies with 500+ employees to the enterprise team",
+                          "Route inbound leads from the pricing page at companies with 500+ employees to the enterprise team",
                           "Send demo requests from healthcare or finance companies to the vertical specialists team",
-                          "Route all leads from the UK, Ireland, and Germany to the EMEA sales team",
+                          "Route all records from the UK, Ireland, and Germany to the EMEA sales team",
                           "Assign Google Ads leads from the 'Enterprise Q1 Campaign' to the outbound SDR group",
                         ].map((example, idx) => (
                           <button
@@ -528,13 +554,13 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                   </div>
                 )}
 
-                {/* Matching Contacts Preview */}
+                {/* Matching Records Preview */}
                 {loadingMatches ? (
                   <Card className="border border-border/50 bg-muted/20">
                     <CardContent className="pt-5 pb-5">
                       <div className="flex items-center gap-3">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Checking for existing contacts...</span>
+                        <span className="text-sm text-muted-foreground">Checking for existing matches...</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -547,9 +573,9 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                             <Users className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                           </div>
                           <div>
-                            <h3 className="font-semibold">{matchCount} Existing Contacts Match</h3>
+                            <h3 className="font-semibold">{matchCount} Existing Records Match</h3>
                             <p className="text-sm text-muted-foreground">
-                              {showMatches ? "Showing matching contacts" : "These contacts meet the criteria"}
+                              {showMatches ? "Showing matching records" : "These records meet the criteria"}
                             </p>
                           </div>
                         </div>
@@ -559,9 +585,15 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                           onClick={() => setShowMatches(!showMatches)}
                         >
                           <Search className="h-4 w-4 mr-2" />
-                          {showMatches ? "Hide" : "View"} Contacts
+                          {showMatches ? "Hide" : "View"} Records
                         </Button>
                       </div>
+
+                      {skippedFields.length > 0 && (
+                        <div className="mt-3 text-xs text-muted-foreground">
+                          Preview limited to synced fields. Skipped: {skippedFields.map(getRoutingFieldLabel).join(", ")}.
+                        </div>
+                      )}
 
                       {showMatches && (
                         <div className="mt-4 border rounded-lg overflow-hidden bg-background">
@@ -626,12 +658,17 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                           <Users className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-sm">No Existing Contacts Match</h3>
+                          <h3 className="font-semibold text-sm">No Existing Records Match</h3>
                           <p className="text-sm text-muted-foreground">
-                            This rule will only apply to new contacts going forward
+                            This rule will only apply to new records going forward
                           </p>
                         </div>
                       </div>
+                      {skippedFields.length > 0 && (
+                        <div className="mt-3 text-xs text-muted-foreground">
+                          Preview limited to synced fields. Skipped: {skippedFields.map(getRoutingFieldLabel).join(", ")}.
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -665,7 +702,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                             )}
                             <div className="bg-muted/50 rounded-lg p-3 space-y-2 border border-border/50">
                               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                                {condition.field}
+                                {getRoutingFieldLabel(condition.field)}
                               </div>
                               <div className="text-sm">
                                 <span className="text-muted-foreground">{getOperatorLabel(condition.operator)}</span>
@@ -823,7 +860,7 @@ export function AIRuleWizard({ open, onOpenChange, groups, onRuleCreated, initia
                   ) : (
                     <>
                       <UserPlus className="mr-2 h-4 w-4" />
-                      Enroll {matchCount} Existing Contact{matchCount !== 1 ? 's' : ''}
+                      Enroll {matchCount} Existing Record{matchCount !== 1 ? 's' : ''}
                     </>
                   )}
                 </Button>

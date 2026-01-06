@@ -236,6 +236,20 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
     }
   }, [isOpen]);
 
+  // Watch for route changes and reposition chat to stay out of the way
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Determine optimal position based on current page
+    const page = pathname?.split("/")[1] || "";
+    const optimalPosition = getPositionForPage(page);
+
+    // Only move to side if we're currently centered and navigating away
+    if (chatPosition.mode === "center" && page) {
+      setChatPosition({ mode: optimalPosition });
+    }
+  }, [pathname, isOpen]);
+
   const createNewConversation = async (firstMessage?: string) => {
     const newConv: Conversation = {
       id: Date.now().toString(),

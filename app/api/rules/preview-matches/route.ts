@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { PREVIEWABLE_FIELDS } from "@/lib/routing-context";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,9 +16,15 @@ export async function POST(req: NextRequest) {
 
     // Build the where clause based on conditions
     const whereConditions: any[] = [];
+    const skippedFields = new Set<string>();
 
     for (const condition of conditions) {
       const { field, operator, value } = condition;
+
+      if (!PREVIEWABLE_FIELDS.has(field)) {
+        skippedFields.add(field);
+        continue;
+      }
 
       // Skip conditions with empty values unless operator doesn't need a value
       const operatorsWithoutValue = ["isBlank", "isPresent"];
@@ -98,6 +105,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       count: contacts.length,
       contacts,
+      skippedFields: Array.from(skippedFields),
     });
   } catch (error) {
     console.error("Error previewing matches:", error);

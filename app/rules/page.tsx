@@ -50,6 +50,7 @@ import { toast } from "sonner";
 import { AIRuleWizard } from "@/components/ai-rule-wizard";
 import { GroupDetailDialog } from "@/components/group-detail-dialog";
 import { useAI } from "@/components/ai-context";
+import { ROUTING_FIELDS } from "@/lib/routing-context";
 
 type Condition = {
   field: string;
@@ -104,18 +105,6 @@ const TRIGGER_TYPES = [
   { value: "manual", label: "Manual Assignment", icon: Hand, color: "amber", description: "Triggers on manual lead routing" },
 ];
 
-const CONTACT_FIELDS = [
-  { value: "leadSource", label: "Lead Source" },
-  { value: "companySize", label: "Company Size" },
-  { value: "industry", label: "Industry" },
-  { value: "country", label: "Country" },
-  { value: "state", label: "State" },
-  { value: "email", label: "Email" },
-  { value: "firstName", label: "First Name" },
-  { value: "lastName", label: "Last Name" },
-  { value: "company", label: "Company" },
-];
-
 const OPERATORS = [
   { value: "equals", label: "Equals", needsValue: true },
   { value: "notEquals", label: "Not Equals", needsValue: true },
@@ -160,6 +149,23 @@ function RulesPageContent() {
   const groupRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const containerRef = useRef<HTMLDivElement>(null);
   // TODO: Add real-time flow visualization - when a contact is routed, light up the specific trigger → rule → group path
+
+  const unknownFields = Array.from(
+    new Set(
+      conditions
+        .map((condition) => condition.field)
+        .filter((field) => !ROUTING_FIELDS.some((routingField) => routingField.value === field))
+    )
+  );
+
+  const fieldOptions = [
+    ...ROUTING_FIELDS,
+    ...unknownFields.map((field) => ({
+      value: field,
+      label: `${field} (legacy)`,
+      description: "Legacy field",
+    })),
+  ];
 
   useEffect(() => {
     fetchData();
@@ -434,9 +440,9 @@ function RulesPageContent() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Routing Flow</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Routing Studio</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Visual map of your intelligent prospect routing system
+              Object-agnostic rules for leads, contacts, and accounts
             </p>
           </div>
           <div className="flex gap-2">
@@ -469,7 +475,7 @@ function RulesPageContent() {
                 <DialogHeader>
                   <DialogTitle>{editingRule ? "Edit Rule" : "Create New Rule"}</DialogTitle>
                   <DialogDescription>
-                    {editingRule ? "Update rule settings" : "Create a rule to route contacts based on conditions"}
+                    {editingRule ? "Update rule settings" : "Create a rule that outputs the right routing group"}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleRuleSubmit}>
@@ -494,7 +500,7 @@ function RulesPageContent() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="destinationGroup">Destination Team</Label>
+                      <Label htmlFor="destinationGroup">Routing Group</Label>
                       <Select
                         value={ruleFormData.groupId}
                         onValueChange={(value) => setRuleFormData({ ...ruleFormData, groupId: value })}
@@ -517,6 +523,9 @@ function RulesPageContent() {
                           Add Condition
                         </Button>
                       </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Fields are normalized across Lead, Contact, and Account. Matching to existing accounts is automatic.
+                      </p>
                       <div className="space-y-2">
                         {conditions.map((condition, index) => (
                           <div key={index} className="flex gap-2 items-end">
@@ -530,7 +539,7 @@ function RulesPageContent() {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {CONTACT_FIELDS.map((field) => (
+                                  {fieldOptions.map((field) => (
                                     <SelectItem key={field.value} value={field.value}>
                                       {field.label}
                                     </SelectItem>
@@ -591,6 +600,46 @@ function RulesPageContent() {
             </Dialog>
           </div>
         </div>
+
+        <Card className="border border-primary/20 bg-gradient-to-r from-background via-muted/20 to-background">
+          <CardContent className="pt-5 pb-5">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 border border-primary/20">
+                  <Layers className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">Routing Context</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    One ruleset for Lead, Contact, and Account records with normalized fields.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-blue-500/10 border border-blue-500/20">
+                  <Sparkles className="h-4 w-4 text-blue-500" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">Match Intelligence</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Auto-match to existing accounts so RevOps never worries about duplicates.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-500/10 border border-emerald-500/20">
+                  <Target className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">Output = Group</div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Rules return the recommended routing group. Ownership is handled elsewhere.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="text-center py-12">

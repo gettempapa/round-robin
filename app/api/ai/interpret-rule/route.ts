@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { ROUTING_FIELDS } from "@/lib/routing-context";
 
 type RuleSuggestion = {
   name: string;
@@ -57,8 +58,8 @@ function patternMatchingFallback(
     confidence = 0.4;
   }
 
-  const ruleName = `Route ${conditions[0].value} ${conditions[0].field === "leadSource" ? "leads" : "contacts"}`;
-  const description = `Automatically routes contacts where ${conditions.map(c => `${c.field} ${c.operator} "${c.value}"`).join(" and ")}`;
+  const ruleName = `Route ${conditions[0].value} records`;
+  const description = `Automatically routes records where ${conditions.map(c => `${c.field} ${c.operator} "${c.value}"`).join(" and ")}`;
   const explanation = `Based on your description, I've created a rule using pattern matching.`;
 
   return {
@@ -82,15 +83,16 @@ async function interpretRuleWithClaude(
   });
 
   const groupsList = availableGroups.map((g) => g.name).join(", ");
+  const fieldsList = ROUTING_FIELDS.map((field) => {
+    const examples = field.examples ? ` e.g., ${field.examples.join(", ")}` : "";
+    return `- ${field.value} (${field.label}): ${field.description}${examples}`;
+  }).join("\n");
 
   const prompt = `You are an expert at converting natural language into routing rule logic.
+Rules are object-agnostic across Lead, Contact, and Account records. Do not mention object types in the output.
 
 Available fields:
-- leadSource (e.g., "Website", "Google Ads", "LinkedIn", "Referral", "Conference")
-- industry (e.g., "Healthcare", "Technology", "Finance", "Retail")
-- country (e.g., "United States", "United Kingdom", "Canada")
-- companySize (e.g., "Enterprise", "SMB", "Startup")
-- company (company name)
+${fieldsList}
 
 Available operators:
 - equals: exact match (use this for "is")

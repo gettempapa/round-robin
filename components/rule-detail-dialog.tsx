@@ -9,7 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Workflow, Users } from "lucide-react";
+import { Users } from "lucide-react";
+import { getRoutingFieldLabel } from "@/lib/routing-context";
 
 type Condition = {
   field: string;
@@ -30,14 +31,6 @@ type Rule = {
   isActive: boolean;
   conditions: string;
 };
-
-const CONTACT_FIELDS = [
-  { value: "leadSource", label: "Lead Source" },
-  { value: "industry", label: "Industry" },
-  { value: "country", label: "Country" },
-  { value: "companySize", label: "Company Size" },
-  { value: "company", label: "Company" },
-];
 
 interface RuleDetailDialogProps {
   ruleId: string | null;
@@ -137,7 +130,7 @@ export function RuleDetailDialog({ ruleId, open, onOpenChange, onGroupClick, onE
                                 <div className="flex items-center gap-2 bg-primary/20 rounded-lg px-3 py-1.5 border border-primary/30">
                                   <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                                   <div className="text-xs font-bold text-primary uppercase tracking-wider">
-                                    {CONTACT_FIELDS.find((f) => f.value === condition.field)?.label || condition.field}
+                                    {getRoutingFieldLabel(condition.field)}
                                   </div>
                                 </div>
 

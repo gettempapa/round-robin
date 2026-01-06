@@ -105,8 +105,8 @@ export function ContactCard({
   const router = useRouter();
 
   const handleClick = () => {
+    // Navigate but do NOT close the chat - it should stay visible
     router.push(`/contacts/${contact.id}`);
-    onClose?.();
   };
 
   return (
@@ -195,8 +195,8 @@ export function ContactList({
       {total > contacts.length && (
         <button
           onClick={() => {
+            // Navigate but do NOT close the chat - it should stay visible
             router.push("/contacts");
-            onClose?.();
           }}
           className="w-full text-xs text-muted-foreground hover:text-foreground text-center py-2 transition-colors"
         >
@@ -227,8 +227,8 @@ export function UserCard({
   const router = useRouter();
 
   const handleClick = () => {
+    // Navigate but do NOT close the chat - it should stay visible
     router.push(`/users`);
-    onClose?.();
   };
 
   return (
@@ -887,9 +887,9 @@ export function RuleConfirmation({
 
       if (response.ok) {
         setCreated(true);
-        // Optionally refresh or navigate
+        // Navigate to rules page after a brief moment to show success
+        // Note: Do NOT close the chat - it should stay visible and move aside
         setTimeout(() => {
-          if (onClose) onClose();
           router.push("/rules");
         }, 1500);
       }
@@ -1025,7 +1025,8 @@ export function renderToolComponent(
     case "notification":
       return <Notification {...props} />;
     case "navigation":
-      return <NavigationButton {...props} onNavigate={onClose} />;
+      // Note: Do NOT pass onClose - chat should stay open during navigation
+      return <NavigationButton {...props} />;
     case "confirmation":
       return <ConfirmationPrompt {...props} onAction={onAction} />;
     case "ruleConfirmation":
