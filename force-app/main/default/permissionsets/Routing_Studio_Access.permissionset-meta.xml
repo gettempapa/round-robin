@@ -75,11 +75,6 @@
   </fieldPermissions>
   <fieldPermissions>
     <editable>true</editable>
-    <field>Routing_Rule_Condition__c.Rule__c</field>
-    <readable>true</readable>
-  </fieldPermissions>
-  <fieldPermissions>
-    <editable>true</editable>
     <field>Routing_Rule_Condition__c.Sort_Order__c</field>
     <readable>true</readable>
   </fieldPermissions>

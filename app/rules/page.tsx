@@ -44,6 +44,7 @@ import { AIRuleWizard } from "@/components/ai-rule-wizard";
 import { GroupDetailDialog } from "@/components/group-detail-dialog";
 import { useAI } from "@/components/ai-context";
 import { ROUTING_FIELDS } from "@/lib/routing-context";
+import { AutoRouteToggle } from "@/components/auto-route-toggle";
 
 type Condition = {
   field: string;
@@ -402,7 +403,9 @@ function RulesPageContent() {
               Object-agnostic rules for leads, contacts, and accounts
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-4">
+            <AutoRouteToggle />
+            <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -555,6 +558,7 @@ function RulesPageContent() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </div>
 
