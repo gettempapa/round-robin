@@ -275,7 +275,7 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
               <Bot className="h-3.5 w-3.5 text-background" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold">RoundRobin AI</h2>
+              <h2 className="text-sm font-semibold">AI Assistant</h2>
             </div>
           </div>
           <div className="flex items-center gap-1">
