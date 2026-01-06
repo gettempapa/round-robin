@@ -326,14 +326,20 @@ function RulesPageContent() {
       description: rule.description || "",
       groupId: rule.groupId,
     });
-    try {
-      const parsedConditions = JSON.parse(rule.conditions);
-      if (Array.isArray(parsedConditions) && parsedConditions.length > 0) {
-        setConditions(parsedConditions);
-      } else {
+    // Handle both SOQL conditions and legacy JSON conditions
+    if (rule.conditions) {
+      try {
+        const parsedConditions = JSON.parse(rule.conditions);
+        if (Array.isArray(parsedConditions) && parsedConditions.length > 0) {
+          setConditions(parsedConditions);
+        } else {
+          setConditions([{ field: "leadSource", operator: "equals", value: "" }]);
+        }
+      } catch {
         setConditions([{ field: "leadSource", operator: "equals", value: "" }]);
       }
-    } catch {
+    } else {
+      // Rule uses SOQL condition or has no conditions
       setConditions([{ field: "leadSource", operator: "equals", value: "" }]);
     }
     setRuleDialogOpen(true);
