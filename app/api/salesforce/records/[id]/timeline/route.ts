@@ -12,7 +12,7 @@ export async function GET(
     // Get Salesforce timeline
     const { record, timeline } = await getRecordTimeline(id);
 
-    // Try to find local contact by email to get RoundRobin assignments
+    // Try to find local contact by email to get RoundRobin routing history
     let localContact = null;
     if (record.email) {
       localContact = await db.contact.findFirst({
@@ -29,41 +29,46 @@ export async function GET(
       });
     }
 
-    // Get rule names for assignments
+    // Get rule details for assignments that have ruleId
     const ruleIds = localContact?.assignments
-      .filter(a => a.ruleId)
-      .map(a => a.ruleId as string) || [];
+      .filter((a: any) => a.ruleId)
+      .map((a: any) => a.ruleId) || [];
 
     const rules = ruleIds.length > 0
       ? await db.rule.findMany({ where: { id: { in: ruleIds } } })
       : [];
-
     const ruleMap = new Map(rules.map(r => [r.id, r]));
 
     // Add RoundRobin routing events to timeline
-    const roundRobinEvents = localContact?.assignments.map((assignment) => {
+    const roundRobinEvents = localContact?.assignments.map((assignment: any) => {
       // Parse metadata for matched conditions
       let matchedConditions = null;
-      let ruleName = null;
+      let matchedRule = null;
 
       if (assignment.metadata) {
         try {
           const meta = JSON.parse(assignment.metadata);
           matchedConditions = meta.conditions;
-          ruleName = meta.matchedRule?.name;
+          matchedRule = meta.matchedRule;
         } catch (e) {}
       }
 
-      // Fallback to rule lookup if not in metadata
-      if (!ruleName && assignment.ruleId) {
-        ruleName = ruleMap.get(assignment.ruleId)?.name;
+      // Get rule details from our lookup
+      const rule = assignment.ruleId ? ruleMap.get(assignment.ruleId) : null;
+      const ruleName = matchedRule?.name || rule?.name;
+      const ruleCondition = rule?.soqlCondition || rule?.conditions;
+
+      // Build a detailed description
+      let description = `Assigned to ${assignment.user.name} via ${assignment.group.name}`;
+      if (ruleName) {
+        description = `Matched rule "${ruleName}" → ${assignment.user.name}`;
       }
 
       return {
         id: `rr-${assignment.id}`,
         type: 'routing' as const,
-        title: assignment.method === 'auto' ? 'Auto-Routed' : 'Manually Routed',
-        description: `Assigned to ${assignment.user.name} via ${assignment.group.name}`,
+        title: assignment.method === 'auto' ? 'Auto-Routed by Rule' : 'Manually Routed',
+        description,
         timestamp: assignment.createdAt.toISOString(),
         actor: { id: '', name: 'RoundRobin' },
         metadata: {
@@ -75,6 +80,7 @@ export async function GET(
           method: assignment.method,
           ruleId: assignment.ruleId,
           ruleName,
+          ruleCondition,
           matchedConditions,
         },
         icon: 'shuffle',

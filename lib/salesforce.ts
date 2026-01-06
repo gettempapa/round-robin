@@ -830,6 +830,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
       LIMIT 100
     `;
     const historyResult = await conn.query(historyQuery);
+    console.log(`${historyObject} found:`, historyResult.totalSize, 'changes');
 
     for (const h of historyResult.records as any[]) {
       if (h.Field === 'Owner' || h.Field === 'OwnerId') {
@@ -840,7 +841,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
           description: `${h.OldValue || 'Unassigned'} → ${h.NewValue}`,
           timestamp: h.CreatedDate,
           actor: { id: '', name: h.CreatedBy?.Name || 'System' },
-          metadata: { oldValue: h.OldValue, newValue: h.NewValue },
+          metadata: { oldValue: h.OldValue, newValue: h.NewValue, field: h.Field },
           icon: 'user-check',
           color: 'blue',
         });
@@ -852,15 +853,29 @@ export async function getRecordTimeline(recordId: string): Promise<{
           description: `${h.OldValue || 'None'} → ${h.NewValue}`,
           timestamp: h.CreatedDate,
           actor: { id: '', name: h.CreatedBy?.Name || 'System' },
-          metadata: { oldValue: h.OldValue, newValue: h.NewValue },
+          metadata: { oldValue: h.OldValue, newValue: h.NewValue, field: h.Field },
           icon: 'refresh-cw',
           color: 'amber',
+        });
+      } else if (h.Field === 'Rating' || h.Field === 'LeadSource' || h.Field === 'Industry') {
+        // Track other important field changes
+        timeline.push({
+          id: h.Id,
+          type: 'status_change',
+          title: `${h.Field} Updated`,
+          description: `${h.OldValue || 'None'} → ${h.NewValue}`,
+          timestamp: h.CreatedDate,
+          actor: { id: '', name: h.CreatedBy?.Name || 'System' },
+          metadata: { oldValue: h.OldValue, newValue: h.NewValue, field: h.Field },
+          icon: 'edit',
+          color: 'slate',
         });
       }
     }
   } catch (e) {
-    // History tracking might not be enabled
-    console.log('Field history not available');
+    // History tracking might not be enabled in Salesforce
+    // This requires "Set History Tracking" to be enabled on the object
+    console.log('Field history not available - ensure history tracking is enabled in Salesforce:', e);
   }
 
   // 3. Get Tasks and Events - use multiple query strategies
