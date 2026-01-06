@@ -175,6 +175,7 @@ export async function executeToolCall(
 
       case "listContacts": {
         const { filter = "all", limit = 10, soqlCondition, recordType = "all" } = toolInput;
+        console.log('listContacts tool called:', { filter, soqlCondition, recordType, limit });
 
         // Build URL params for the contacts page
         const params = new URLSearchParams();
@@ -193,10 +194,11 @@ export async function executeToolCall(
 
         const queryString = params.toString();
         const path = queryString ? `/contacts?${queryString}` : "/contacts";
+        console.log('listContacts navigating to:', path);
 
         // Return navigation to contacts page with filter applied
         // The contacts page will read the URL params and display filtered results
-        return {
+        const result = {
           success: true,
           data: {
             path,
@@ -216,6 +218,8 @@ export async function executeToolCall(
             },
           },
         };
+        console.log('listContacts returning:', result);
+        return result;
       }
 
       // ============ ASSIGNMENT OPERATIONS ============

@@ -377,12 +377,15 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
       });
 
       const data = await response.json();
+      console.log('AI Response:', { message: data.message, toolResults: data.toolResults });
 
       if (data.toolResults) {
         for (const result of data.toolResults) {
+          console.log('Processing tool result:', result.tool, result.uiComponent);
           const props = result.uiComponent?.props;
 
           if (result.uiComponent?.type === "navigation" && props?.path) {
+            console.log('Navigating to:', props.path);
             await handleNavigation(
               props.path,
               props.path.split("/")[1] || "dashboard"

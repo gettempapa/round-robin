@@ -116,14 +116,30 @@ export async function POST(req: NextRequest) {
       },
     ];
 
+    // Detect if this is a search/filter request that MUST use tools
+    const lowerMessage = message.toLowerCase();
+    const isSearchRequest = lowerMessage.includes('show') ||
+                           lowerMessage.includes('find') ||
+                           lowerMessage.includes('list') ||
+                           lowerMessage.includes('filter') ||
+                           lowerMessage.includes('leads') ||
+                           lowerMessage.includes('contacts') ||
+                           lowerMessage.includes('starting with') ||
+                           lowerMessage.includes('starts with');
+
     // Call Claude with tools
     let response = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
       system: systemContext,
       tools: claudeTools as any,
+      // Force tool use for search requests
+      tool_choice: isSearchRequest ? { type: "any" } : { type: "auto" },
       messages,
     });
+
+    console.log('AI response stop_reason:', response.stop_reason);
+    console.log('AI response content types:', response.content.map(c => c.type));
 
     // Process tool calls in a loop until we get a final response
     const toolResults: Array<{ tool: string; result: ToolResult }> = [];

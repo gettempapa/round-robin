@@ -20,59 +20,8 @@
 
     <section class="builder">
       <div class="builder__glow"></div>
-      <div class="body slds-grid slds-wrap">
-      <section class="panel slds-size_1-of-1 slds-large-size_5-of-12">
-        <div class="panel__header">
-          <h2 class="panel__title">Rule Basics</h2>
-          <p class="panel__subtitle">Give the rule a name and connect it to a routing group.</p>
-        </div>
-
-        <lightning-record-edit-form
-          object-api-name={ruleObjectApiName}
-          onsuccess={handleRuleSuccess}
-          onerror={handleRuleError}
-          onsubmit={handleRuleSubmit}
-        >
-          <div class="form-grid">
-            <lightning-input-field
-              field-name={ruleNameField}
-              data-field="name"
-              onchange={handleRuleFieldChange}
-            ></lightning-input-field>
-            <lightning-input-field
-              field-name={ruleDescriptionField}
-              data-field="description"
-              onchange={handleRuleFieldChange}
-            ></lightning-input-field>
-            <lightning-input-field
-              field-name={ruleGroupField}
-              data-field="groupId"
-              onchange={handleRuleFieldChange}
-            ></lightning-input-field>
-            <lightning-input-field
-              field-name={ruleMatchLogicField}
-              data-field="matchLogic"
-              onchange={handleRuleFieldChange}
-            ></lightning-input-field>
-            <lightning-input-field
-              field-name={rulePriorityField}
-              data-field="priority"
-              onchange={handleRuleFieldChange}
-            ></lightning-input-field>
-          </div>
-
-          <div class="actions">
-            <lightning-button
-              variant="brand"
-              type="submit"
-              label="Create Rule"
-              disabled={isSaving}
-            ></lightning-button>
-          </div>
-        </lightning-record-edit-form>
-      </section>
-
-      <section class="panel slds-size_1-of-1 slds-large-size_7-of-12">
+      <div class="body builder-grid">
+      <section class="panel">
         <div class="panel__header">
           <h2 class="panel__title">Conditions</h2>
           <p class="panel__subtitle">Add one or more filters. Use AND/OR match logic in the rule.</p>
@@ -137,9 +86,60 @@
             </template>
           </div>
         </template>
-        <template if:false={fieldOptions}>
+        <template if:false={hasConditionOptions}>
           <div class="loading">Loading condition options...</div>
         </template>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <h2 class="panel__title">Who Should Own It</h2>
+          <p class="panel__subtitle">Name the rule and route it to the right group.</p>
+        </div>
+
+        <lightning-record-edit-form
+          object-api-name={ruleObjectApiName}
+          onsuccess={handleRuleSuccess}
+          onerror={handleRuleError}
+          onsubmit={handleRuleSubmit}
+        >
+          <div class="form-grid">
+            <lightning-input-field
+              field-name={ruleNameField}
+              data-field="name"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={ruleDescriptionField}
+              data-field="description"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={ruleGroupField}
+              data-field="groupId"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={ruleMatchLogicField}
+              data-field="matchLogic"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={rulePriorityField}
+              data-field="priority"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+          </div>
+
+          <div class="actions">
+            <lightning-button
+              variant="brand"
+              type="submit"
+              label="Create Rule"
+              disabled={isSaving}
+            ></lightning-button>
+          </div>
+        </lightning-record-edit-form>
       </section>
       </div>
     </section>
