@@ -911,7 +911,31 @@ export async function getRecordTimeline(recordId: string): Promise<{
   }
 
   // 3. Get Tasks and Events - use multiple query strategies
+  console.log('=== Timeline: Fetching activities ===');
+  console.log('Record ID:', recordId);
+  console.log('Record Type:', isLead ? 'Lead' : 'Contact');
+  console.log('Record Name:', record.Name);
+  console.log('Record Email:', record.Email);
+
   try {
+    // First, let's see what tasks exist in this org that reference this record
+    // Query ALL recent tasks to see what WhoId values look like
+    try {
+      const recentTasksQuery = `
+        SELECT Id, Subject, WhoId, Who.Name, WhatId, What.Name, CreatedDate
+        FROM Task
+        ORDER BY CreatedDate DESC
+        LIMIT 10
+      `;
+      const recentTasks = await conn.query(recentTasksQuery);
+      console.log('Recent tasks in org (for debugging):');
+      for (const t of recentTasks.records as any[]) {
+        console.log(`  Task: "${t.Subject}" | WhoId: ${t.WhoId} (${t.Who?.Name}) | WhatId: ${t.WhatId} (${t.What?.Name})`);
+      }
+    } catch (debugErr) {
+      console.log('Debug task query failed:', debugErr);
+    }
+
     // Strategy 1: Query using the record's ActivityHistories (most reliable)
     // This uses the Salesforce relationship that links activities to the record
     try {
@@ -919,9 +943,11 @@ export async function getRecordTimeline(recordId: string): Promise<{
         ? `SELECT Id, (SELECT Id, Subject, Status, Priority, Description, ActivityDate, CreatedDate, Owner.Name, Type, CallType FROM ActivityHistories ORDER BY CreatedDate DESC LIMIT 50) FROM Lead WHERE Id = '${recordId}'`
         : `SELECT Id, (SELECT Id, Subject, Status, Priority, Description, ActivityDate, CreatedDate, Owner.Name, Type, CallType FROM ActivityHistories ORDER BY CreatedDate DESC LIMIT 50) FROM Contact WHERE Id = '${recordId}'`;
 
+      console.log('ActivityHistories query:', activityHistoryQuery);
       const activityResult = await conn.query(activityHistoryQuery);
+      console.log('ActivityHistories raw result:', JSON.stringify(activityResult.records[0], null, 2));
       const activities = (activityResult.records[0] as any)?.ActivityHistories?.records || [];
-      console.log('ActivityHistories found:', activities.length, 'activities');
+      console.log('ActivityHistories parsed:', activities.length, 'activities');
 
       for (const task of activities) {
         const isCall = task.Type === 'Call' || task.CallType || task.Subject?.toLowerCase().includes('call');
@@ -939,8 +965,8 @@ export async function getRecordTimeline(recordId: string): Promise<{
           color: task.Status === 'Completed' ? 'emerald' : 'slate',
         });
       }
-    } catch (actErr) {
-      console.log('ActivityHistories query failed:', actErr);
+    } catch (actErr: any) {
+      console.log('ActivityHistories query failed:', actErr?.message || actErr);
     }
 
     // Strategy 2: Also get OpenActivities (scheduled tasks/events)
@@ -971,12 +997,12 @@ export async function getRecordTimeline(recordId: string): Promise<{
           color: 'amber',
         });
       }
-    } catch (openErr) {
-      console.log('OpenActivities query failed:', openErr);
+    } catch (openErr: any) {
+      console.log('OpenActivities query failed:', openErr?.message || openErr);
     }
 
-    // Strategy 3: Fallback - direct Task query by WhoId
-    // Build a list of related IDs to query (for WhoId - person records)
+    // Strategy 3: Direct Task query by WhoId (catches all tasks regardless of status)
+    console.log('=== Direct Task Query ===');
     const whoIds = [recordId];
     // Also collect Account IDs for WhatId queries (object records)
     const whatIds: string[] = [];
@@ -1011,6 +1037,9 @@ export async function getRecordTimeline(recordId: string): Promise<{
       }
     }
 
+    console.log('Searching for tasks with WhoIds:', whoIds);
+    console.log('Searching for tasks with WhatIds:', whatIds);
+
     // Build WHERE clause - check WhoId OR WhatId
     const whoIdFilter = whoIds.map(id => `'${id}'`).join(',');
     let whereClause = `WhoId IN (${whoIdFilter})`;
@@ -1022,15 +1051,19 @@ export async function getRecordTimeline(recordId: string): Promise<{
     // Query Tasks directly (fallback)
     const taskQuery = `
       SELECT Id, Subject, Status, Priority, Description, ActivityDate,
-             CreatedDate, Owner.Name, WhoId, WhatId, Type
+             CreatedDate, Owner.Name, WhoId, Who.Name, WhatId, What.Name, Type
       FROM Task
       WHERE ${whereClause}
       ORDER BY CreatedDate DESC
       LIMIT 50
     `;
-    console.log('Querying tasks with:', whereClause);
+    console.log('Direct Task query:', taskQuery);
     const taskResult = await conn.query(taskQuery);
-    console.log('Task results:', taskResult.totalSize, 'records');
+    console.log('Direct Task results:', taskResult.totalSize, 'records');
+
+    for (const task of taskResult.records as any[]) {
+      console.log(`Found task: "${task.Subject}" | WhoId: ${task.WhoId} (${task.Who?.Name}) | WhatId: ${task.WhatId}`);
+    }
 
     const seenTaskIds = new Set<string>(timeline.filter(t => t.type === 'task' || t.type === 'call' || t.type === 'email').map(t => t.id));
     for (const task of taskResult.records as any[]) {
@@ -1047,7 +1080,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
         description: task.Description?.substring(0, 200),
         timestamp: task.CreatedDate,
         actor: { id: '', name: task.Owner?.Name || 'Unknown' },
-        metadata: { status: task.Status, priority: task.Priority },
+        metadata: { status: task.Status, priority: task.Priority, whoName: task.Who?.Name },
         icon: isCall ? 'phone' : isEmail ? 'mail' : 'check-square',
         color: task.Status === 'Completed' ? 'emerald' : 'slate',
       });
@@ -1056,7 +1089,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
     // Query Events
     const eventQuery = `
       SELECT Id, Subject, Description, StartDateTime, EndDateTime,
-             CreatedDate, Owner.Name, WhoId, WhatId, Type, Location
+             CreatedDate, Owner.Name, WhoId, Who.Name, WhatId, Type, Location
       FROM Event
       WHERE ${whereClause}
       ORDER BY CreatedDate DESC
@@ -1082,6 +1115,10 @@ export async function getRecordTimeline(recordId: string): Promise<{
         color: 'purple',
       });
     }
+
+    console.log('=== Timeline summary ===');
+    console.log('Total timeline events:', timeline.length);
+    console.log('Activity types:', timeline.map(t => t.type).filter((v, i, a) => a.indexOf(v) === i));
   } catch (e) {
     console.error('Tasks/Events query error:', e);
   }

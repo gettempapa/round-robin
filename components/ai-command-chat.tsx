@@ -377,21 +377,42 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
       });
 
       const data = await response.json();
-      console.log('AI Response:', { message: data.message, toolResults: data.toolResults });
+      console.log('AI Response:', {
+        message: data.message,
+        toolResults: data.toolResults,
+        toolCount: data.toolResults?.length || 0,
+      });
 
-      if (data.toolResults) {
+      if (data.toolResults && data.toolResults.length > 0) {
         for (const result of data.toolResults) {
-          console.log('Processing tool result:', result.tool, result.uiComponent);
+          console.log('Processing tool result:', {
+            tool: result.tool,
+            success: result.success,
+            uiComponentType: result.uiComponent?.type,
+            props: result.uiComponent?.props,
+            data: result.data,
+          });
+
           const props = result.uiComponent?.props;
 
+          // Handle navigation from listContacts or navigateTo
           if (result.uiComponent?.type === "navigation" && props?.path) {
-            console.log('Navigating to:', props.path);
-            await handleNavigation(
-              props.path,
-              props.path.split("/")[1] || "dashboard"
-            );
+            console.log('=== NAVIGATION TRIGGERED ===');
+            console.log('Path:', props.path);
+            console.log('Current pathname:', pathname);
+
+            try {
+              await handleNavigation(
+                props.path,
+                props.path.split("/")[1] || "dashboard"
+              );
+              console.log('Navigation completed successfully');
+            } catch (navError) {
+              console.error('Navigation failed:', navError);
+            }
           }
 
+          // Handle navigateTo prop from other tools (createRule, createContact, etc.)
           if (props?.navigateTo) {
             const page = props.navigateTo.split("/")[1] || "dashboard";
             const highlightType = result.uiComponent?.type === "ruleCard" ? "rule"
@@ -400,14 +421,23 @@ export function AICommandChat({ isOpen, onClose, initialMessage }: AIChatProps) 
               : result.uiComponent?.type === "userCard" ? "user"
               : undefined;
 
-            await handleNavigation(
-              props.navigateTo,
-              page,
-              props.highlightId,
-              highlightType
-            );
+            console.log('=== NAVIGATE TO (from tool result) ===');
+            console.log('Target:', props.navigateTo);
+
+            try {
+              await handleNavigation(
+                props.navigateTo,
+                page,
+                props.highlightId,
+                highlightType
+              );
+            } catch (navError) {
+              console.error('Navigation (navigateTo) failed:', navError);
+            }
           }
         }
+      } else {
+        console.log('No tool results in response - AI may not have used a tool');
       }
 
       const aiMsg: Message = {

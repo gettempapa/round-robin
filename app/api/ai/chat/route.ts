@@ -116,16 +116,42 @@ export async function POST(req: NextRequest) {
       },
     ];
 
-    // Detect if this is a search/filter request that MUST use tools
+    // Detect what type of request this is to force the right tool
     const lowerMessage = message.toLowerCase();
-    const isSearchRequest = lowerMessage.includes('show') ||
-                           lowerMessage.includes('find') ||
-                           lowerMessage.includes('list') ||
-                           lowerMessage.includes('filter') ||
-                           lowerMessage.includes('leads') ||
-                           lowerMessage.includes('contacts') ||
-                           lowerMessage.includes('starting with') ||
-                           lowerMessage.includes('starts with');
+
+    // Search/filter requests MUST use listContacts
+    const isSearchRequest = (
+      lowerMessage.includes('show') ||
+      lowerMessage.includes('find') ||
+      lowerMessage.includes('list') ||
+      lowerMessage.includes('filter') ||
+      lowerMessage.includes('starting with') ||
+      lowerMessage.includes('starts with') ||
+      lowerMessage.includes('whose name') ||
+      lowerMessage.includes('where') ||
+      lowerMessage.includes('with name')
+    ) && (
+      lowerMessage.includes('lead') ||
+      lowerMessage.includes('contact') ||
+      lowerMessage.includes('record')
+    );
+
+    // Navigation requests should use navigateTo
+    const isNavRequest = lowerMessage.includes('go to') ||
+                         lowerMessage.includes('navigate to') ||
+                         lowerMessage.includes('take me to') ||
+                         lowerMessage.includes('open');
+
+    // Determine tool_choice based on request type
+    let toolChoice: any = { type: "auto" };
+    if (isSearchRequest) {
+      // Force listContacts specifically for search/filter requests
+      toolChoice = { type: "tool", name: "listContacts" };
+      console.log('Forcing listContacts tool for search request:', message);
+    } else if (isNavRequest) {
+      toolChoice = { type: "tool", name: "navigateTo" };
+      console.log('Forcing navigateTo tool for nav request:', message);
+    }
 
     // Call Claude with tools
     let response = await anthropic.messages.create({
@@ -133,9 +159,14 @@ export async function POST(req: NextRequest) {
       max_tokens: 4096,
       system: systemContext,
       tools: claudeTools as any,
-      // Force tool use for search requests
-      tool_choice: isSearchRequest ? { type: "any" } : { type: "auto" },
+      tool_choice: toolChoice,
       messages,
+    });
+
+    console.log('Claude response:', {
+      stop_reason: response.stop_reason,
+      content_types: response.content.map(c => c.type),
+      tool_calls: response.content.filter(c => c.type === 'tool_use').map((c: any) => c.name),
     });
 
     console.log('AI response stop_reason:', response.stop_reason);
