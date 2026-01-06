@@ -850,17 +850,45 @@ export async function getRecordTimeline(recordId: string): Promise<{
     console.log('Field history not available');
   }
 
-  // 3. Get Tasks
+  // 3. Get Tasks - query by WhoId, and also by related Lead/Contact email
   try {
+    // Build a list of related IDs to query
+    const relatedIds = [recordId];
+
+    // If this is a Contact, also check for tasks on related Leads with same email
+    // If this is a Lead, also check for tasks on related Contacts with same email
+    if (record.Email) {
+      try {
+        if (isLead) {
+          // Find contacts with same email
+          const contactsWithEmail = await conn.query(
+            `SELECT Id FROM Contact WHERE Email = '${record.Email}' LIMIT 5`
+          );
+          relatedIds.push(...(contactsWithEmail.records as any[]).map(c => c.Id));
+        } else {
+          // Find leads with same email
+          const leadsWithEmail = await conn.query(
+            `SELECT Id FROM Lead WHERE Email = '${record.Email}' AND IsConverted = false LIMIT 5`
+          );
+          relatedIds.push(...(leadsWithEmail.records as any[]).map(l => l.Id));
+        }
+      } catch (e) {
+        // Ignore - just use the primary record ID
+      }
+    }
+
+    const whoIdFilter = relatedIds.map(id => `'${id}'`).join(',');
     const taskQuery = `
       SELECT Id, Subject, Status, Priority, Description, ActivityDate,
              CreatedDate, Owner.Name, WhoId, Type
       FROM Task
-      WHERE WhoId = '${recordId}'
+      WHERE WhoId IN (${whoIdFilter})
       ORDER BY CreatedDate DESC
       LIMIT 50
     `;
+    console.log('Querying tasks for IDs:', relatedIds);
     const taskResult = await conn.query(taskQuery);
+    console.log('Task results:', taskResult.totalSize, 'records');
 
     for (const task of taskResult.records as any[]) {
       const isCall = task.Type === 'Call' || task.Subject?.toLowerCase().includes('call');
@@ -878,21 +906,18 @@ export async function getRecordTimeline(recordId: string): Promise<{
         color: task.Status === 'Completed' ? 'emerald' : 'slate',
       });
     }
-  } catch (e) {
-    console.log('Tasks not available');
-  }
 
-  // 4. Get Events (meetings, etc.)
-  try {
+    // Also query Events with same filter
     const eventQuery = `
       SELECT Id, Subject, Description, StartDateTime, EndDateTime,
              CreatedDate, Owner.Name, WhoId, Type, Location
       FROM Event
-      WHERE WhoId = '${recordId}'
+      WHERE WhoId IN (${whoIdFilter})
       ORDER BY CreatedDate DESC
       LIMIT 50
     `;
     const eventResult = await conn.query(eventQuery);
+    console.log('Event results:', eventResult.totalSize, 'records');
 
     for (const event of eventResult.records as any[]) {
       timeline.push({
@@ -908,7 +933,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
       });
     }
   } catch (e) {
-    console.log('Events not available');
+    console.error('Tasks/Events query error:', e);
   }
 
   // 5. If Lead was converted, add conversion event

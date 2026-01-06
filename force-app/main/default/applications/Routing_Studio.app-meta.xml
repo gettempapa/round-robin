@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+  <label>Routing Studio</label>
+  <description>AI-first routing configuration for RevOps and Business Systems.</description>
+  <navType>Standard</navType>
+  <uiType>Lightning</uiType>
+  <tabs>Routing_Studio</tabs>
+  <tabs>Routing_Rule__c</tabs>
+  <tabs>Routing_Rule_Condition__c</tabs>
+  <tabs>Routing_Group__c</tabs>
+  <tabs>Routing_Group_Member__c</tabs>
+</CustomApplication>
