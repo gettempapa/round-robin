@@ -3,7 +3,15 @@ import { db } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, description, groupId, conditions, conditionLogic = "AND" } = await req.json();
+    const {
+      name,
+      description,
+      groupId,
+      soqlCondition,
+      conditions,
+      conditionLogic = "AND",
+      objectType = "Lead"
+    } = await req.json();
 
     // Get or create a default ruleset
     let ruleset = await db.ruleset.findFirst({
@@ -32,7 +40,10 @@ export async function POST(req: NextRequest) {
         description: description || null,
         groupId,
         rulesetId: ruleset.id,
-        conditions: JSON.stringify(conditions),
+        objectType,
+        // Use SOQL condition if provided, otherwise fall back to legacy conditions
+        soqlCondition: soqlCondition || null,
+        conditions: conditions ? JSON.stringify(conditions) : null,
         conditionLogic,
         priority: (maxPriority._max.priority || 0) + 1,
         isActive: true,

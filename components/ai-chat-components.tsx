@@ -77,7 +77,9 @@ type RuleData = {
   name: string;
   description?: string | null;
   isActive: boolean;
-  conditions: string;
+  conditions?: string | null;
+  soqlCondition?: string | null;
+  objectType?: string;
   group?: { id: string; name: string };
   priority?: number;
   matchCount?: number;
@@ -445,7 +447,9 @@ export function RuleCard({
 
   let conditions: any[] = [];
   try {
-    conditions = JSON.parse(rule.conditions);
+    if (rule.conditions) {
+      conditions = JSON.parse(rule.conditions);
+    }
   } catch {
     conditions = [];
   }
@@ -477,6 +481,11 @@ export function RuleCard({
               <Badge variant={rule.isActive ? "default" : "secondary"} className="text-xs">
                 {rule.isActive ? "Active" : "Inactive"}
               </Badge>
+              {rule.objectType && (
+                <Badge variant="outline" className="text-xs">
+                  {rule.objectType}
+                </Badge>
+              )}
             </div>
 
             {rule.description && (
@@ -490,7 +499,13 @@ export function RuleCard({
               <Badge variant="outline">{rule.group?.name || "Unknown"}</Badge>
             </div>
 
-            {conditions.length > 0 && (
+            {rule.soqlCondition ? (
+              <div className="mt-2">
+                <code className="text-xs font-mono bg-muted px-2 py-1 rounded">
+                  {rule.soqlCondition}
+                </code>
+              </div>
+            ) : conditions.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {conditions.slice(0, 3).map((c, i) => (
                   <Badge key={i} variant="secondary" className="text-xs font-normal">
@@ -852,7 +867,9 @@ export function RuleConfirmation({
   groupName,
   groupId,
   conditions,
+  soqlCondition,
   conditionLogic,
+  objectType,
   onAction,
   onClose,
 }: {
@@ -860,8 +877,10 @@ export function RuleConfirmation({
   description: string;
   groupName: string;
   groupId: string;
-  conditions: Array<{ field: string; operator: string; value: string }>;
-  conditionLogic: string;
+  conditions?: Array<{ field: string; operator: string; value: string }>;
+  soqlCondition?: string;
+  conditionLogic?: string;
+  objectType?: string;
   onAction?: (action: string, data: any) => void;
   onClose?: () => void;
 }) {
@@ -880,8 +899,10 @@ export function RuleConfirmation({
           name,
           description,
           groupId,
+          soqlCondition,
           conditions,
           conditionLogic,
+          objectType,
         }),
       });
 
@@ -941,15 +962,28 @@ export function RuleConfirmation({
 
         <div className="bg-muted/50 rounded-lg p-3 space-y-2">
           <div className="text-xs text-muted-foreground uppercase font-medium">
-            Conditions ({conditionLogic})
+            {soqlCondition ? 'SOQL Condition' : `Conditions (${conditionLogic || 'AND'})`}
           </div>
-          <div className="flex flex-wrap gap-1">
-            {conditions.map((c, i) => (
-              <Badge key={i} variant="secondary" className="text-xs font-mono">
-                {c.field} {c.operator} &quot;{c.value}&quot;
-              </Badge>
-            ))}
-          </div>
+          {soqlCondition ? (
+            <code className="text-xs font-mono bg-background px-2 py-1 rounded block">
+              {soqlCondition}
+            </code>
+          ) : conditions && conditions.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {conditions.map((c, i) => (
+                <Badge key={i} variant="secondary" className="text-xs font-mono">
+                  {c.field} {c.operator} &quot;{c.value}&quot;
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground">No conditions specified</span>
+          )}
+          {objectType && (
+            <div className="text-xs text-muted-foreground">
+              Applies to: <Badge variant="outline" className="text-xs">{objectType}</Badge>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 text-sm">
