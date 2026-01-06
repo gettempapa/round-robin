@@ -28,6 +28,23 @@ const DEFAULT_ROW = () => ({
 });
 
 export default class RoutingRuleBuilder extends LightningElement {
+  signalCards = [
+    {
+      id: 'matching',
+      title: 'Smart Match',
+      body: 'Detects existing account ownership before any round robin is applied.'
+    },
+    {
+      id: 'weights',
+      title: 'Weighted Round Robin',
+      body: 'Distribute workload based on team capacity with zero manual juggling.'
+    },
+    {
+      id: 'sla',
+      title: 'SLA Ready',
+      body: 'Design for reassignment timers without touching rule logic.'
+    }
+  ];
   sampleRules = [
     {
       id: 'inbound-enterprise',
@@ -62,6 +79,39 @@ export default class RoutingRuleBuilder extends LightningElement {
         { field: 'department', operator: 'equals', value: 'Alliances' }
       ]
     }
+  ];
+  fallbackFieldOptions = [
+    { label: 'Lead Source', value: 'leadSource' },
+    { label: 'Lead Status', value: 'leadStatus' },
+    { label: 'Lifecycle Stage', value: 'lifecycleStage' },
+    { label: 'Campaign', value: 'campaign' },
+    { label: 'Inbound Channel', value: 'inboundChannel' },
+    { label: 'Industry', value: 'industry' },
+    { label: 'Company', value: 'company' },
+    { label: 'Company Domain', value: 'companyDomain' },
+    { label: 'Company Size', value: 'companySize' },
+    { label: 'Employee Count', value: 'employeeCount' },
+    { label: 'Annual Revenue', value: 'annualRevenue' },
+    { label: 'Account Tier', value: 'accountTier' },
+    { label: 'Region', value: 'region' },
+    { label: 'Country', value: 'country' },
+    { label: 'State / Province', value: 'state' },
+    { label: 'City', value: 'city' },
+    { label: 'Email', value: 'email' },
+    { label: 'Job Title', value: 'jobTitle' },
+    { label: 'Department', value: 'department' },
+    { label: 'Product Interest', value: 'productInterest' }
+  ];
+  fallbackOperatorOptions = [
+    { label: 'Equals', value: 'equals' },
+    { label: 'Not Equals', value: 'notEquals' },
+    { label: 'Contains', value: 'contains' },
+    { label: 'Not Contains', value: 'notContains' },
+    { label: 'Starts With', value: 'startsWith' },
+    { label: 'Is Blank', value: 'isBlank' },
+    { label: 'Is Present', value: 'isPresent' },
+    { label: 'Greater Than', value: 'greaterThan' },
+    { label: 'Less Than', value: 'lessThan' }
   ];
   ruleObjectApiName = ROUTING_RULE_OBJECT;
   ruleNameField = ROUTING_RULE_NAME_FIELD;
@@ -278,6 +328,22 @@ export default class RoutingRuleBuilder extends LightningElement {
     return tips;
   }
 
+  get resolvedFieldOptions() {
+    return this.fieldOptions.length ? this.fieldOptions : this.fallbackFieldOptions;
+  }
+
+  get resolvedOperatorOptions() {
+    return this.operatorOptions.length ? this.operatorOptions : this.fallbackOperatorOptions;
+  }
+
+  get hasConditionOptions() {
+    return this.resolvedFieldOptions.length > 0 && this.resolvedOperatorOptions.length > 0;
+  }
+
+  get usingFallbackOptions() {
+    return this.fieldOptions.length === 0 || this.operatorOptions.length === 0;
+  }
+
   get previewLines() {
     const lines = [];
     const ruleName = this.ruleDraft.name || 'Untitled rule';
@@ -296,8 +362,8 @@ export default class RoutingRuleBuilder extends LightningElement {
     const conditionLines = this.conditionRows
       .filter((row) => row.field && row.operator)
       .map((row, index) => {
-        const fieldLabel = this.getPicklistLabel(this.fieldOptions, row.field);
-        const operatorLabel = this.getPicklistLabel(this.operatorOptions, row.operator);
+        const fieldLabel = this.getPicklistLabel(this.resolvedFieldOptions, row.field);
+        const operatorLabel = this.getPicklistLabel(this.resolvedOperatorOptions, row.operator);
         const value = row.value ? `\"${row.value}\"` : 'any value';
         return `${index + 1}. If ${fieldLabel || row.field} ${operatorLabel || row.operator} ${value}`;
       });

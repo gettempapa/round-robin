@@ -863,8 +863,72 @@ export async function getRecordTimeline(recordId: string): Promise<{
     console.log('Field history not available');
   }
 
-  // 3. Get Tasks and Events - query by WhoId and related records
+  // 3. Get Tasks and Events - use multiple query strategies
   try {
+    // Strategy 1: Query using the record's ActivityHistories (most reliable)
+    // This uses the Salesforce relationship that links activities to the record
+    try {
+      const activityHistoryQuery = isLead
+        ? `SELECT Id, (SELECT Id, Subject, Status, Priority, Description, ActivityDate, CreatedDate, Owner.Name, Type, CallType FROM ActivityHistories ORDER BY CreatedDate DESC LIMIT 50) FROM Lead WHERE Id = '${recordId}'`
+        : `SELECT Id, (SELECT Id, Subject, Status, Priority, Description, ActivityDate, CreatedDate, Owner.Name, Type, CallType FROM ActivityHistories ORDER BY CreatedDate DESC LIMIT 50) FROM Contact WHERE Id = '${recordId}'`;
+
+      const activityResult = await conn.query(activityHistoryQuery);
+      const activities = (activityResult.records[0] as any)?.ActivityHistories?.records || [];
+      console.log('ActivityHistories found:', activities.length, 'activities');
+
+      for (const task of activities) {
+        const isCall = task.Type === 'Call' || task.CallType || task.Subject?.toLowerCase().includes('call');
+        const isEmail = task.Type === 'Email' || task.Subject?.toLowerCase().includes('email');
+
+        timeline.push({
+          id: task.Id,
+          type: isCall ? 'call' : isEmail ? 'email' : 'task',
+          title: task.Subject || 'Task',
+          description: task.Description?.substring(0, 200),
+          timestamp: task.CreatedDate,
+          actor: { id: '', name: task.Owner?.Name || 'Unknown' },
+          metadata: { status: task.Status, priority: task.Priority, callType: task.CallType },
+          icon: isCall ? 'phone' : isEmail ? 'mail' : 'check-square',
+          color: task.Status === 'Completed' ? 'emerald' : 'slate',
+        });
+      }
+    } catch (actErr) {
+      console.log('ActivityHistories query failed:', actErr);
+    }
+
+    // Strategy 2: Also get OpenActivities (scheduled tasks/events)
+    try {
+      const openActivityQuery = isLead
+        ? `SELECT Id, (SELECT Id, Subject, Status, Priority, Description, ActivityDate, CreatedDate, Owner.Name, Type FROM OpenActivities ORDER BY ActivityDate ASC LIMIT 50) FROM Lead WHERE Id = '${recordId}'`
+        : `SELECT Id, (SELECT Id, Subject, Status, Priority, Description, ActivityDate, CreatedDate, Owner.Name, Type FROM OpenActivities ORDER BY ActivityDate ASC LIMIT 50) FROM Contact WHERE Id = '${recordId}'`;
+
+      const openResult = await conn.query(openActivityQuery);
+      const openActivities = (openResult.records[0] as any)?.OpenActivities?.records || [];
+      console.log('OpenActivities found:', openActivities.length, 'activities');
+
+      for (const task of openActivities) {
+        // Skip if we already have this one
+        if (timeline.some(t => t.id === task.Id)) continue;
+
+        const isCall = task.Type === 'Call' || task.Subject?.toLowerCase().includes('call');
+
+        timeline.push({
+          id: task.Id,
+          type: isCall ? 'call' : 'task',
+          title: task.Subject || 'Scheduled Task',
+          description: task.Description?.substring(0, 200),
+          timestamp: task.ActivityDate || task.CreatedDate,
+          actor: { id: '', name: task.Owner?.Name || 'Unknown' },
+          metadata: { status: task.Status || 'Open', priority: task.Priority, scheduled: true },
+          icon: isCall ? 'phone' : 'check-square',
+          color: 'amber',
+        });
+      }
+    } catch (openErr) {
+      console.log('OpenActivities query failed:', openErr);
+    }
+
+    // Strategy 3: Fallback - direct Task query by WhoId
     // Build a list of related IDs to query (for WhoId - person records)
     const whoIds = [recordId];
     // Also collect Account IDs for WhatId queries (object records)
@@ -908,7 +972,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
       whereClause = `(${whereClause} OR WhatId IN (${whatIdFilter}))`;
     }
 
-    // Query Tasks
+    // Query Tasks directly (fallback)
     const taskQuery = `
       SELECT Id, Subject, Status, Priority, Description, ActivityDate,
              CreatedDate, Owner.Name, WhoId, WhatId, Type
@@ -921,7 +985,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
     const taskResult = await conn.query(taskQuery);
     console.log('Task results:', taskResult.totalSize, 'records');
 
-    const seenTaskIds = new Set<string>();
+    const seenTaskIds = new Set<string>(timeline.filter(t => t.type === 'task' || t.type === 'call' || t.type === 'email').map(t => t.id));
     for (const task of taskResult.records as any[]) {
       if (seenTaskIds.has(task.Id)) continue;
       seenTaskIds.add(task.Id);
@@ -954,7 +1018,7 @@ export async function getRecordTimeline(recordId: string): Promise<{
     const eventResult = await conn.query(eventQuery);
     console.log('Event results:', eventResult.totalSize, 'records');
 
-    const seenEventIds = new Set<string>();
+    const seenEventIds = new Set<string>(timeline.filter(t => t.type === 'event').map(t => t.id));
     for (const event of eventResult.records as any[]) {
       if (seenEventIds.has(event.Id)) continue;
       seenEventIds.add(event.Id);

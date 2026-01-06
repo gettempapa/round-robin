@@ -30,6 +30,35 @@
   max-width: 520px;
 }
 
+.signal {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.signal-card {
+  border-radius: 16px;
+  padding: 16px;
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(236, 245, 255, 0.9));
+  border: 1px solid rgba(30, 50, 90, 0.08);
+  box-shadow: 0 10px 18px rgba(18, 36, 70, 0.08);
+}
+
+.signal-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1f2a44;
+}
+
+.signal-card__body {
+  font-size: 12px;
+  color: #394150;
+  margin-top: 8px;
+}
+
 .body {
   gap: 20px;
 }
@@ -187,6 +216,12 @@
   margin-top: 8px;
 }
 
+.conditions__note {
+  font-size: 11px;
+  color: #6b6b6b;
+  margin-top: 6px;
+}
+
 .loading {
   padding: 24px 0;
   color: #6b6b6b;
@@ -226,6 +261,10 @@
 }
 
 @media (max-width: 1024px) {
+  .signal {
+    grid-template-columns: 1fr;
+  }
+
   .playbook__grid {
     grid-template-columns: 1fr;
   }

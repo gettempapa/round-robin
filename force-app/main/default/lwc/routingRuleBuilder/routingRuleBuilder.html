@@ -9,6 +9,15 @@
       </p>
     </header>
 
+    <section class="signal">
+      <template for:each={signalCards} for:item="card">
+        <div class="signal-card" key={card.id}>
+          <div class="signal-card__title">{card.title}</div>
+          <div class="signal-card__body">{card.body}</div>
+        </div>
+      </template>
+    </section>
+
     <section class="panel playbook">
       <div class="panel__header">
         <h2 class="panel__title">Studio Playbook</h2>
@@ -129,7 +138,7 @@
           <p class="panel__subtitle">Add one or more filters. Use AND/OR match logic in the rule.</p>
         </div>
 
-        <template if:true={fieldOptions}>
+        <template if:true={hasConditionOptions}>
           <div class="conditions">
             <template for:each={conditionRows} for:item="row" for:index="index">
               <div class="condition" key={row.id}>
@@ -137,7 +146,7 @@
                   class="condition__field"
                   label="Field"
                   value={row.field}
-                  options={fieldOptions}
+                  options={resolvedFieldOptions}
                   data-index={index}
                   data-field="field"
                   onchange={handleConditionChange}
@@ -147,7 +156,7 @@
                   class="condition__operator"
                   label="Operator"
                   value={row.operator}
-                  options={operatorOptions}
+                  options={resolvedOperatorOptions}
                   data-index={index}
                   data-field="operator"
                   onchange={handleConditionChange}
@@ -181,6 +190,11 @@
                 onclick={addCondition}
               ></lightning-button>
             </div>
+            <template if:true={usingFallbackOptions}>
+              <div class="conditions__note">
+                Using the studio defaults for field and operator menus.
+              </div>
+            </template>
           </div>
         </template>
         <template if:false={fieldOptions}>
