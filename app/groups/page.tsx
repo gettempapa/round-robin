@@ -35,8 +35,9 @@ import {
   ArrowRight,
   Workflow
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
+import { useAI } from "@/components/ai-context";
 
 type User = {
   id: string;
@@ -77,6 +78,7 @@ type Group = {
 };
 
 export default function GroupsPage() {
+  const { highlightElement } = useAI();
   const [groups, setGroups] = useState<Group[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,11 +91,24 @@ export default function GroupsPage() {
     distributionMode: "equal",
     isActive: true,
   });
+  const groupRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     fetchGroups();
     fetchUsers();
   }, []);
+
+  // Scroll highlighted group into view
+  useEffect(() => {
+    if (highlightElement?.type === 'group' && highlightElement?.id) {
+      const groupEl = groupRefs.current.get(highlightElement.id);
+      if (groupEl) {
+        setTimeout(() => {
+          groupEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [highlightElement]);
 
   const fetchGroups = async () => {
     try {
@@ -335,7 +350,15 @@ export default function GroupsPage() {
               return (
                 <Card
                   key={group.id}
-                  className="group relative overflow-hidden border bg-gradient-to-br from-card via-card to-muted/10 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1"
+                  ref={(el) => {
+                    if (el) groupRefs.current.set(group.id, el);
+                    else groupRefs.current.delete(group.id);
+                  }}
+                  className={`group relative overflow-hidden border bg-gradient-to-br from-card via-card to-muted/10 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 hover:-translate-y-1 ${
+                    highlightElement?.type === 'group' && highlightElement?.id === group.id
+                      ? 'ai-highlight'
+                      : ''
+                  }`}
                 >
                   <div className={`absolute top-0 left-0 right-0 h-1 ${
                     group.isActive

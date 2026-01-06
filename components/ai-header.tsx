@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Send, TrendingUp } from "lucide-react";
 import { useAI } from "./ai-context";
 
 export function AIHeader() {
-  const { query, setQuery, executeQuery, isProcessing } = useAI();
+  const { query, setQuery, executeQuery, isProcessing, setOriginRect } = useAI();
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -22,18 +23,37 @@ export function AIHeader() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  // Capture the input's position for chat entry animation
+  const captureOriginRect = useCallback(() => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setOriginRect({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    }
+  }, [setOriginRect]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      captureOriginRect();
       executeQuery(query);
     }
+  };
+
+  // Also capture on focus click for when user clicks input to open chat
+  const handleFocus = () => {
+    captureOriginRect();
   };
 
   return (
     <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative z-50">
       <div className="flex h-16 items-center gap-4 px-8">
         {/* AI Input */}
-        <div className="flex-1 max-w-3xl">
+        <div className="flex-1 max-w-3xl" ref={containerRef}>
           <form onSubmit={handleSubmit} className="relative">
             <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 z-10">
               <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-blue-600 to-blue-600">
@@ -45,6 +65,7 @@ export function AIHeader() {
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onFocus={handleFocus}
               disabled={isProcessing}
               placeholder={isProcessing ? "AI is processing..." : "Ask me anything..."}
               className="h-11 pl-20 pr-24 text-sm border-2 border-blue-500/20 focus:border-blue-500/50 bg-background/50 font-medium placeholder:text-muted-foreground/50 focus:placeholder:text-muted-foreground/30 disabled:opacity-70 relative z-10"

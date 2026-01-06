@@ -31,8 +31,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, UserCircle, Pencil, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
+import { useAI } from "@/components/ai-context";
 
 type User = {
   id: string;
@@ -48,6 +49,7 @@ type User = {
 };
 
 export default function UsersPage() {
+  const { highlightElement } = useAI();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -59,10 +61,23 @@ export default function UsersPage() {
     status: "active",
     capacity: "",
   });
+  const userRefs = useRef<Map<string, HTMLTableRowElement>>(new Map());
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Scroll highlighted user into view
+  useEffect(() => {
+    if (highlightElement?.type === 'user' && highlightElement?.id) {
+      const userEl = userRefs.current.get(highlightElement.id);
+      if (userEl) {
+        setTimeout(() => {
+          userEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [highlightElement]);
 
   const fetchUsers = async () => {
     try {
@@ -267,7 +282,18 @@ export default function UsersPage() {
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
-                    <TableRow key={user.id}>
+                    <TableRow
+                      key={user.id}
+                      ref={(el) => {
+                        if (el) userRefs.current.set(user.id, el);
+                        else userRefs.current.delete(user.id);
+                      }}
+                      className={
+                        highlightElement?.type === 'user' && highlightElement?.id === user.id
+                          ? 'ai-highlight'
+                          : ''
+                      }
+                    >
                       <TableCell className="font-medium">{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>

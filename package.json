@@ -34,6 +34,7 @@
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "dotenv": "^17.2.3",
+    "framer-motion": "^12.24.0",
     "googleapis": "^169.0.0",
     "jsforce": "^3.10.10",
     "lucide-react": "^0.562.0",

@@ -63,6 +63,9 @@ export async function executeToolCall(
               contact,
               isNew: true,
               actions: ["assign", "edit", "view"],
+              // Magic carpet: navigate to contacts page and highlight the new contact
+              navigateTo: "/contacts",
+              highlightId: contact.id,
             },
           },
         };
@@ -525,6 +528,9 @@ export async function executeToolCall(
               rule,
               isNew: true,
               actions: ["toggle", "edit", "view"],
+              // Magic carpet: navigate to rules page and highlight the new rule
+              navigateTo: "/rules",
+              highlightId: rule.id,
             },
           },
         };
@@ -625,6 +631,9 @@ export async function executeToolCall(
               group,
               isNew: true,
               actions: ["addMembers", "edit", "view"],
+              // Magic carpet: navigate to groups page and highlight the new group
+              navigateTo: "/groups",
+              highlightId: group.id,
             },
           },
         };
@@ -753,6 +762,9 @@ export async function executeToolCall(
               user,
               isNew: true,
               actions: ["addToGroup", "edit", "view"],
+              // Magic carpet: navigate to users page and highlight the new user
+              navigateTo: "/users",
+              highlightId: user.id,
             },
           },
         };
@@ -940,6 +952,18 @@ export async function executeToolCall(
           meetings: "/meetings",
         };
 
+        // Magic carpet: determine optimal chat position for each page
+        const chatPositions: Record<string, string> = {
+          rules: "side-left", // Rules page has flow visualization on right
+          contacts: "side-right",
+          users: "side-right",
+          groups: "side-right",
+          activity: "side-right",
+          settings: "side-right",
+          forms: "side-right",
+          meetings: "side-right",
+        };
+
         const basePath = routes[page];
         const queryString = Object.entries(params)
           .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
@@ -955,6 +979,7 @@ export async function executeToolCall(
             props: {
               path: fullPath,
               label: `Go to ${page.charAt(0).toUpperCase() + page.slice(1)}`,
+              chatPosition: chatPositions[page] || "side-right",
             },
           },
         };

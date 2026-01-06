@@ -49,6 +49,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { AIRuleWizard } from "@/components/ai-rule-wizard";
 import { GroupDetailDialog } from "@/components/group-detail-dialog";
+import { useAI } from "@/components/ai-context";
 
 type Condition = {
   field: string;
@@ -128,6 +129,7 @@ const OPERATORS = [
 
 function RulesPageContent() {
   const searchParams = useSearchParams();
+  const { highlightElement } = useAI();
   const [rulesets, setRulesets] = useState<Ruleset[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -176,6 +178,18 @@ function RulesPageContent() {
       window.history.replaceState({}, "", "/rules");
     }
   }, [searchParams, loading]);
+
+  // Scroll highlighted rule into view
+  useEffect(() => {
+    if (highlightElement?.type === 'rule' && highlightElement?.id) {
+      const ruleEl = ruleRefs.current.get(highlightElement.id);
+      if (ruleEl) {
+        setTimeout(() => {
+          ruleEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    }
+  }, [highlightElement]);
 
   useLayoutEffect(() => {
     if (!containerRef.current || loading) return;
@@ -770,6 +784,10 @@ function RulesPageContent() {
                                       rule.isActive
                                         ? 'bg-card border-border hover:border-foreground/30'
                                         : 'bg-muted/20 border-muted/30 opacity-60'
+                                    } ${
+                                      highlightElement?.type === 'rule' && highlightElement?.id === rule.id
+                                        ? 'ai-highlight'
+                                        : ''
                                     }`}
                                     onClick={() => setSelectedGroup(group)}
                                   >
