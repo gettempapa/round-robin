@@ -18,69 +18,9 @@
       </template>
     </section>
 
-    <section class="panel playbook">
-      <div class="panel__header">
-        <h2 class="panel__title">Studio Playbook</h2>
-        <p class="panel__subtitle">A light-touch guide that keeps RevOps in the flow.</p>
-      </div>
-      <div class="playbook__grid">
-        <div class="playbook__steps">
-          <div class="step-card">
-            <div class="step-card__number">01</div>
-            <div class="step-card__title">Name the intent</div>
-            <div class="step-card__body">
-              Give the rule a clear name and pick a routing group.
-            </div>
-          </div>
-          <div class="step-card">
-            <div class="step-card__number">02</div>
-            <div class="step-card__title">Describe the lead</div>
-            <div class="step-card__body">
-              Add conditions like region, source, or account tier.
-            </div>
-          </div>
-          <div class="step-card">
-            <div class="step-card__number">03</div>
-            <div class="step-card__title">Confirm the logic</div>
-            <div class="step-card__body">
-              Review the preview. The routing engine applies smart matching automatically.
-            </div>
-          </div>
-        </div>
-        <div class="playbook__guidance">
-          <div class="guidance__title">Live Guidance</div>
-          <template for:each={guidanceTips} for:item="tip">
-            <div class="guidance__item" key={tip}>{tip}</div>
-          </template>
-          <div class="guidance__note">
-            Existing account matches and round robin weighting are handled by the engine.
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel quickstart">
-      <div class="panel__header">
-        <h2 class="panel__title">Quick Start Templates</h2>
-        <p class="panel__subtitle">Kick off a polished rule and tweak the details.</p>
-      </div>
-      <div class="quickstart__grid">
-        <template for:each={sampleRules} for:item="sample">
-          <div class="quick-card" key={sample.id}>
-            <div class="quick-card__title">{sample.label}</div>
-            <div class="quick-card__desc">{sample.description}</div>
-            <lightning-button
-              variant="brand-outline"
-              label="Use template"
-              data-sample-id={sample.id}
-              onclick={applySample}
-            ></lightning-button>
-          </div>
-        </template>
-      </div>
-    </section>
-
-    <div class="body slds-grid slds-wrap">
+    <section class="builder">
+      <div class="builder__glow"></div>
+      <div class="body slds-grid slds-wrap">
       <section class="panel slds-size_1-of-1 slds-large-size_5-of-12">
         <div class="panel__header">
           <h2 class="panel__title">Rule Basics</h2>
@@ -201,7 +141,8 @@
           <div class="loading">Loading condition options...</div>
         </template>
       </section>
-    </div>
+      </div>
+    </section>
 
     <section class="panel preview">
       <div class="panel__header">
@@ -217,6 +158,68 @@
         <template if:false={previewLines.length}>
           <div class="preview__empty">
             Add rule details and at least one condition to see a preview.
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <section class="panel playbook">
+      <div class="panel__header">
+        <h2 class="panel__title">Studio Playbook</h2>
+        <p class="panel__subtitle">A light-touch guide that keeps RevOps in the flow.</p>
+      </div>
+      <div class="playbook__grid">
+        <div class="playbook__steps">
+          <div class="step-card">
+            <div class="step-card__number">01</div>
+            <div class="step-card__title">Name the intent</div>
+            <div class="step-card__body">
+              Give the rule a clear name and pick a routing group.
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-card__number">02</div>
+            <div class="step-card__title">Describe the lead</div>
+            <div class="step-card__body">
+              Add conditions like region, source, or account tier.
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-card__number">03</div>
+            <div class="step-card__title">Confirm the logic</div>
+            <div class="step-card__body">
+              Review the preview. The routing engine applies smart matching automatically.
+            </div>
+          </div>
+        </div>
+        <div class="playbook__guidance">
+          <div class="guidance__title">Live Guidance</div>
+          <template for:each={guidanceTips} for:item="tip">
+            <div class="guidance__item" key={tip}>{tip}</div>
+          </template>
+          <div class="guidance__note">
+            Existing account matches and round robin weighting are handled by the engine.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel quickstart">
+      <div class="panel__header">
+        <h2 class="panel__title">Quick Start Templates</h2>
+        <p class="panel__subtitle">Kick off a polished rule and tweak the details.</p>
+      </div>
+      <div class="quickstart__grid">
+        <template for:each={sampleRules} for:item="sample">
+          <div class="quick-card" key={sample.id}>
+            <div class="quick-card__title">{sample.label}</div>
+            <div class="quick-card__desc">{sample.description}</div>
+            <lightning-button
+              variant="brand-outline"
+              label="Use template"
+              data-sample-id={sample.id}
+              onclick={applySample}
+            ></lightning-button>
           </div>
         </template>
       </div>

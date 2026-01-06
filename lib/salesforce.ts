@@ -832,16 +832,48 @@ export async function getRecordTimeline(recordId: string): Promise<{
     const historyResult = await conn.query(historyQuery);
     console.log(`${historyObject} found:`, historyResult.totalSize, 'changes');
 
+    // Collect owner IDs to resolve names
+    const ownerIds = new Set<string>();
     for (const h of historyResult.records as any[]) {
       if (h.Field === 'Owner' || h.Field === 'OwnerId') {
+        // OldValue and NewValue for owner changes are User IDs (005xxx)
+        if (h.OldValue && typeof h.OldValue === 'string' && h.OldValue.startsWith('005')) {
+          ownerIds.add(h.OldValue);
+        }
+        if (h.NewValue && typeof h.NewValue === 'string' && h.NewValue.startsWith('005')) {
+          ownerIds.add(h.NewValue);
+        }
+      }
+    }
+
+    // Resolve owner IDs to names
+    const ownerNames = new Map<string, string>();
+    if (ownerIds.size > 0) {
+      try {
+        const userQuery = `SELECT Id, Name FROM User WHERE Id IN (${Array.from(ownerIds).map(id => `'${id}'`).join(',')})`;
+        const userResult = await conn.query(userQuery);
+        for (const u of userResult.records as any[]) {
+          ownerNames.set(u.Id, u.Name);
+        }
+      } catch (e) {
+        console.log('Could not resolve owner names:', e);
+      }
+    }
+
+    for (const h of historyResult.records as any[]) {
+      if (h.Field === 'Owner' || h.Field === 'OwnerId') {
+        // Resolve IDs to names, or use value as-is if already a name
+        const oldName = h.OldValue?.startsWith?.('005') ? ownerNames.get(h.OldValue) || 'Unknown' : h.OldValue;
+        const newName = h.NewValue?.startsWith?.('005') ? ownerNames.get(h.NewValue) || 'Unknown' : h.NewValue;
+
         timeline.push({
           id: h.Id,
           type: 'owner_change',
           title: 'Owner Changed',
-          description: `${h.OldValue || 'Unassigned'} → ${h.NewValue}`,
+          description: `${oldName || 'Unassigned'} → ${newName}`,
           timestamp: h.CreatedDate,
           actor: { id: '', name: h.CreatedBy?.Name || 'System' },
-          metadata: { oldValue: h.OldValue, newValue: h.NewValue, field: h.Field },
+          metadata: { oldValue: oldName, newValue: newName, field: h.Field },
           icon: 'user-check',
           color: 'blue',
         });

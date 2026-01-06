@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   PlusCircle,
   UserCheck,
@@ -15,17 +15,15 @@ import {
   Building,
   FileText,
   Shuffle,
-  ChevronLeft,
-  ChevronRight,
   ZoomIn,
   ZoomOut,
   Filter,
   X,
   ExternalLink,
+  Edit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -76,6 +74,7 @@ const ICON_MAP: Record<string, any> = {
   'building': Building,
   'file-text': FileText,
   'shuffle': Shuffle,
+  'edit': Edit,
 };
 
 const COLOR_MAP: Record<string, string> = {
@@ -141,10 +140,7 @@ export function ContactTimeline({ recordId, onClose }: ContactTimelineProps) {
   const [filteredTypes, setFilteredTypes] = useState<Set<string>>(new Set());
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Pan and zoom state
   const [scale, setScale] = useState(1);
-  const x = useMotionValue(0);
 
   useEffect(() => {
     fetchTimeline();
@@ -165,10 +161,6 @@ export function ContactTimeline({ recordId, onClose }: ContactTimelineProps) {
       setLoading(false);
     }
   };
-
-  const handleDrag = useCallback((event: any, info: PanInfo) => {
-    // Handled by framer-motion
-  }, []);
 
   const handleZoomIn = () => setScale(s => Math.min(s + 0.2, 2));
   const handleZoomOut = () => setScale(s => Math.max(s - 0.2, 0.5));
@@ -279,38 +271,34 @@ export function ContactTimeline({ recordId, onClose }: ContactTimelineProps) {
         </div>
       </div>
 
-      {/* Timeline Canvas */}
+      {/* Timeline Canvas - scrollable */}
       <div
         ref={containerRef}
-        className="flex-1 overflow-hidden bg-gradient-to-b from-muted/30 to-background relative"
+        className="flex-1 overflow-y-auto overflow-x-hidden bg-gradient-to-b from-muted/30 to-background relative"
       >
-        <motion.div
-          drag="x"
-          dragConstraints={containerRef}
-          dragElastic={0.1}
-          onDrag={handleDrag}
-          style={{ x, scale }}
-          className="min-h-full p-6 cursor-grab active:cursor-grabbing"
+        <div
+          style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
+          className="min-h-full p-4"
         >
           {/* Vertical timeline line */}
-          <div className="absolute left-[27px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-transparent" />
+          <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-transparent" />
 
           {/* Event groups */}
-          <div className="space-y-6 relative">
+          <div className="space-y-4 relative">
             {groupedEvents.map((group, groupIndex) => (
-              <div key={group.label} className="space-y-3">
+              <div key={group.label} className="space-y-1.5">
                 {/* Date label */}
-                <div className="flex items-center gap-3 sticky top-0 z-10 py-1">
-                  <div className="w-[54px] flex justify-center">
-                    <div className="h-3 w-3 rounded-full bg-primary ring-4 ring-background" />
+                <div className="flex items-center gap-2 py-1">
+                  <div className="w-[38px] flex justify-center">
+                    <div className="h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-background" />
                   </div>
-                  <span className="text-xs font-semibold text-muted-foreground bg-background/80 backdrop-blur px-2 py-0.5 rounded">
+                  <span className="text-[11px] font-medium text-muted-foreground">
                     {group.label}
                   </span>
                 </div>
 
-                {/* Events */}
-                <div className="space-y-2 ml-[54px]">
+                {/* Events - compact list */}
+                <div className="space-y-1 ml-[38px]">
                   {group.events.map((event, eventIndex) => {
                     const IconComponent = ICON_MAP[event.icon || ''] || CheckSquare;
                     const colorClass = COLOR_MAP[event.color || 'slate'];
@@ -318,84 +306,82 @@ export function ContactTimeline({ recordId, onClose }: ContactTimelineProps) {
                     return (
                       <motion.div
                         key={event.id}
-                        initial={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: eventIndex * 0.03 }}
-                        onClick={() => setSelectedEvent(event)}
+                        transition={{ delay: eventIndex * 0.02 }}
+                        onClick={() => setSelectedEvent(selectedEvent?.id === event.id ? null : event)}
                         className="cursor-pointer"
                       >
-                        <Card className={cn(
-                          "group relative overflow-hidden transition-all duration-200",
-                          "hover:shadow-md hover:border-primary/30",
-                          selectedEvent?.id === event.id && "ring-2 ring-primary shadow-md"
+                        <div className={cn(
+                          "flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors",
+                          "hover:bg-muted/50",
+                          selectedEvent?.id === event.id && "bg-muted"
                         )}>
-                          {/* Color accent bar */}
+                          {/* Icon */}
                           <div className={cn(
-                            "absolute left-0 top-0 bottom-0 w-1",
-                            event.color === 'emerald' && "bg-emerald-500",
-                            event.color === 'blue' && "bg-blue-500",
-                            event.color === 'amber' && "bg-amber-500",
-                            event.color === 'purple' && "bg-purple-500",
-                            event.color === 'indigo' && "bg-indigo-500",
-                            event.color === 'sky' && "bg-sky-500",
-                            event.color === 'primary' && "bg-primary",
-                            !event.color && "bg-slate-400",
-                          )} />
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded border",
+                            colorClass
+                          )}>
+                            <IconComponent className="h-3 w-3" />
+                          </div>
 
-                          <CardContent className="p-3 pl-4">
-                            <div className="flex items-start gap-3">
-                              <div className={cn(
-                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-                                colorClass
-                              )}>
-                                <IconComponent className="h-4 w-4" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between gap-2">
-                                  <h4 className="text-sm font-medium truncate">{event.title}</h4>
-                                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                                    {format(parseISO(event.timestamp), 'h:mm a')}
-                                  </span>
-                                </div>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium truncate">{event.title}</span>
+                              {event.description && (
+                                <span className="text-[11px] text-muted-foreground truncate hidden sm:inline">
+                                  — {event.description}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Time */}
+                          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                            {format(parseISO(event.timestamp), 'h:mm a')}
+                          </span>
+                        </div>
+
+                        {/* Expanded details */}
+                        <AnimatePresence>
+                          {selectedEvent?.id === event.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="ml-8 mt-1 p-2 bg-muted/30 rounded text-xs space-y-1">
                                 {event.description && (
-                                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                                    {event.description}
-                                  </p>
+                                  <p className="text-muted-foreground">{event.description}</p>
                                 )}
                                 {event.actor?.name && (
-                                  <p className="text-[10px] text-muted-foreground/70 mt-1">
-                                    by {event.actor.name}
-                                  </p>
+                                  <p className="text-muted-foreground/70">by {event.actor.name}</p>
                                 )}
-
-                                {/* Routing metadata expansion */}
+                                {/* Routing details */}
                                 {event.type === 'routing' && event.metadata?.matchedConditions && (
-                                  <div className="mt-2 pt-2 border-t border-dashed">
-                                    <p className="text-[10px] font-medium text-muted-foreground mb-1">
-                                      Matched Conditions ({event.metadata.ruleName}):
+                                  <div className="pt-1 border-t border-dashed mt-1">
+                                    <p className="text-[10px] font-medium text-muted-foreground">
+                                      Rule: {event.metadata.ruleName}
                                     </p>
-                                    <div className="space-y-1">
-                                      {event.metadata.matchedConditions.map((mc: any, i: number) => (
-                                        <div key={i} className="flex items-center gap-1.5 text-[10px]">
-                                          <CheckCircle className={cn(
-                                            "h-3 w-3",
-                                            mc.matched ? "text-emerald-500" : "text-red-400"
-                                          )} />
-                                          <span className="font-mono">
-                                            {mc.condition.field} {mc.condition.operator} "{mc.condition.value}"
-                                          </span>
-                                          <span className="text-muted-foreground">
-                                            (was: {mc.actualValue || 'empty'})
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
+                                    {event.metadata.matchedConditions.map((mc: any, i: number) => (
+                                      <div key={i} className="flex items-center gap-1 text-[10px] mt-0.5">
+                                        <CheckCircle className={cn(
+                                          "h-2.5 w-2.5",
+                                          mc.matched ? "text-emerald-500" : "text-red-400"
+                                        )} />
+                                        <span className="font-mono">
+                                          {mc.condition.field} {mc.condition.operator} "{mc.condition.value}"
+                                        </span>
+                                      </div>
+                                    ))}
                                   </div>
                                 )}
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     );
                   })}
@@ -421,7 +407,7 @@ export function ContactTimeline({ recordId, onClose }: ContactTimelineProps) {
               )}
             </div>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {/* Footer with stats */}
