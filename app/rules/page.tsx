@@ -766,7 +766,7 @@ function RulesPageContent() {
                                         if (el) ruleRefs.current.set(rule.id, el);
                                         else ruleRefs.current.delete(rule.id);
                                       }}
-                                      className={`relative flex items-center gap-3 p-3 rounded border transition-all duration-200 hover:shadow-sm ${
+                                      className={`relative flex items-center gap-3 p-3 rounded border transition-all duration-200 hover:shadow-sm cursor-pointer ${
                                         rule.isActive
                                           ? 'bg-background border-border hover:border-foreground/30'
                                           : 'bg-muted/20 border-muted/30 opacity-60'
@@ -775,6 +775,7 @@ function RulesPageContent() {
                                           ? 'ai-highlight'
                                           : ''
                                       }`}
+                                      onClick={() => openEditRuleDialog(rule)}
                                     >
                                       <div className={`flex h-6 w-6 items-center justify-center rounded border text-xs font-bold shrink-0 ${
                                         rule.isActive
@@ -800,11 +801,12 @@ function RulesPageContent() {
                                             e.stopPropagation();
                                             toggleRuleStatus(rule);
                                           }}
+                                          title={rule.isActive ? "Disable rule" : "Enable rule"}
                                         >
                                           {rule.isActive ? (
-                                            <PowerOff className="h-3.5 w-3.5" />
+                                            <Power className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500" />
                                           ) : (
-                                            <Power className="h-3.5 w-3.5" />
+                                            <PowerOff className="h-3.5 w-3.5 text-red-500/70 dark:text-red-400/70" />
                                           )}
                                         </Button>
                                         <Button
