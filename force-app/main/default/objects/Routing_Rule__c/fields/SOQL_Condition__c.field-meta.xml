@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>SOQL_Condition__c</fullName>
+    <description>SOQL WHERE clause for rule evaluation. Example: Industry = 'Technology' AND AnnualRevenue > 1000000</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Enter a SOQL WHERE clause condition. Example: Industry = 'Technology' AND AnnualRevenue > 1000000</inlineHelpText>
+    <label>SOQL Condition</label>
+    <length>32000</length>
+    <trackTrending>false</trackTrending>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

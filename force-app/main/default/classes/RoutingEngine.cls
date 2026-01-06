@@ -132,11 +132,24 @@ public with sharing class RoutingEngine {
             Map<String, String> context = buildRoutingContext(record, matchedAccount);
 
             Boolean matched = false;
+            String objectType = request.recordId.getSObjectType().getDescribe().getName();
+
             for (RuleBundle bundle : ruleBundles) {
                 if (bundle.rule == null || bundle.rule.Is_Active__c != true) {
                     continue;
                 }
-                if (evaluateRule(bundle, context)) {
+
+                Boolean ruleMatches = false;
+
+                // Check SOQL-based rules first (new approach)
+                if (!String.isBlank(bundle.rule.SOQL_Condition__c)) {
+                    ruleMatches = evaluateSoqlRule(bundle.rule, request.recordId, objectType);
+                } else {
+                    // Fall back to legacy condition-based evaluation
+                    ruleMatches = evaluateRule(bundle, context);
+                }
+
+                if (ruleMatches) {
                     matched = true;
                     result.recommendedGroupId = bundle.rule.Group__c;
                     result.matchedRuleId = bundle.rule.Id;
@@ -204,6 +217,14 @@ public with sharing class RoutingEngine {
             return false;
         }
 
+        // Check if rule has SOQL condition - this takes precedence
+        if (!String.isBlank(bundle.rule.SOQL_Condition__c)) {
+            // SOQL evaluation is handled separately in evaluateSoqlRule
+            // Return false here - actual evaluation happens in the main loop
+            return false;
+        }
+
+        // Legacy condition-based evaluation
         String logic = bundle.rule.Match_Logic__c == null ? 'AND' : bundle.rule.Match_Logic__c;
         if (bundle.conditions.isEmpty()) {
             return false;
@@ -224,6 +245,29 @@ public with sharing class RoutingEngine {
             }
         }
         return true;
+    }
+
+    // Evaluate a rule using its SOQL condition
+    private static Boolean evaluateSoqlRule(Routing_Rule__c rule, Id recordId, String objectType) {
+        if (rule == null || String.isBlank(rule.SOQL_Condition__c)) {
+            return false;
+        }
+
+        // Check if rule applies to this object type
+        String ruleObjectType = rule.Object_Type__c == null ? 'Lead' : rule.Object_Type__c;
+        if (ruleObjectType != 'Both' && ruleObjectType != objectType) {
+            return false;
+        }
+
+        try {
+            // Build and execute SOQL query
+            String soql = 'SELECT Id FROM ' + objectType + ' WHERE Id = \'' + String.escapeSingleQuotes(String.valueOf(recordId)) + '\' AND (' + rule.SOQL_Condition__c + ') LIMIT 1';
+            List<SObject> results = Database.query(soql);
+            return !results.isEmpty();
+        } catch (Exception e) {
+            System.debug('SOQL rule evaluation error for rule ' + rule.Name + ': ' + e.getMessage());
+            return false;
+        }
     }
 
     private static Boolean evaluateCondition(Routing_Rule_Condition__c condition, Map<String, String> context) {
@@ -282,7 +326,7 @@ public with sharing class RoutingEngine {
 
     private static List<RuleBundle> loadActiveRules() {
         List<Routing_Rule__c> rules = [
-            SELECT Id, Name, Group__c, Priority__c, Is_Active__c, Match_Logic__c
+            SELECT Id, Name, Group__c, Priority__c, Is_Active__c, Match_Logic__c, SOQL_Condition__c, Object_Type__c
             FROM Routing_Rule__c
             WHERE Is_Active__c = true
             ORDER BY Priority__c ASC, CreatedDate ASC

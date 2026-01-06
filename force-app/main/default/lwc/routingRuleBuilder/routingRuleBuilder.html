@@ -1,0 +1,155 @@
+<template>
+  <div class="studio">
+    <header class="hero">
+      <div class="hero__eyebrow">Routing Studio</div>
+      <h1 class="hero__title">Build a routing rule in minutes</h1>
+      <p class="hero__subtitle">
+        Define who should own a lead, contact, or account based on simple rules. The engine handles
+        matching and round robin behind the scenes.
+      </p>
+    </header>
+
+    <div class="body slds-grid slds-wrap">
+      <section class="panel slds-size_1-of-1 slds-large-size_5-of-12">
+        <div class="panel__header">
+          <h2 class="panel__title">Rule Basics</h2>
+          <p class="panel__subtitle">Give the rule a name and connect it to a routing group.</p>
+        </div>
+
+        <lightning-record-edit-form
+          object-api-name={ruleObjectApiName}
+          onsuccess={handleRuleSuccess}
+          onerror={handleRuleError}
+          onsubmit={handleRuleSubmit}
+        >
+          <div class="form-grid">
+            <lightning-input-field
+              field-name={ruleNameField}
+              data-field="name"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={ruleDescriptionField}
+              data-field="description"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={ruleGroupField}
+              data-field="groupId"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={ruleMatchLogicField}
+              data-field="matchLogic"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+            <lightning-input-field
+              field-name={rulePriorityField}
+              data-field="priority"
+              onchange={handleRuleFieldChange}
+            ></lightning-input-field>
+          </div>
+
+          <div class="actions">
+            <lightning-button
+              variant="brand"
+              type="submit"
+              label="Create Rule"
+              disabled={isSaving}
+            ></lightning-button>
+          </div>
+        </lightning-record-edit-form>
+      </section>
+
+      <section class="panel slds-size_1-of-1 slds-large-size_7-of-12">
+        <div class="panel__header">
+          <h2 class="panel__title">Conditions</h2>
+          <p class="panel__subtitle">Add one or more filters. Use AND/OR match logic in the rule.</p>
+        </div>
+
+        <template if:true={fieldOptions}>
+          <div class="conditions">
+            <template for:each={conditionRows} for:item="row" for:index="index">
+              <div class="condition" key={row.id}>
+                <lightning-combobox
+                  class="condition__field"
+                  label="Field"
+                  value={row.field}
+                  options={fieldOptions}
+                  data-index={index}
+                  data-field="field"
+                  onchange={handleConditionChange}
+                ></lightning-combobox>
+
+                <lightning-combobox
+                  class="condition__operator"
+                  label="Operator"
+                  value={row.operator}
+                  options={operatorOptions}
+                  data-index={index}
+                  data-field="operator"
+                  onchange={handleConditionChange}
+                ></lightning-combobox>
+
+                <lightning-input
+                  class="condition__value"
+                  type="text"
+                  label="Value"
+                  value={row.value}
+                  data-index={index}
+                  data-field="value"
+                  onchange={handleConditionChange}
+                ></lightning-input>
+
+                <lightning-button-icon
+                  class="condition__remove"
+                  icon-name="utility:close"
+                  alternative-text="Remove"
+                  title="Remove"
+                  data-index={index}
+                  onclick={removeCondition}
+                ></lightning-button-icon>
+              </div>
+            </template>
+
+            <div class="condition-actions">
+              <lightning-button
+                variant="neutral"
+                label="Add condition"
+                onclick={addCondition}
+              ></lightning-button>
+            </div>
+          </div>
+        </template>
+        <template if:false={fieldOptions}>
+          <div class="loading">Loading condition options...</div>
+        </template>
+      </section>
+    </div>
+
+    <section class="panel preview">
+      <div class="panel__header">
+        <h2 class="panel__title">Rule Preview</h2>
+        <p class="panel__subtitle">A plain-English summary of the rule you are creating.</p>
+      </div>
+      <div class="preview__body">
+        <template if:true={previewLines.length}>
+          <template for:each={previewLines} for:item="line">
+            <div class="preview__line" key={line}>{line}</div>
+          </template>
+        </template>
+        <template if:false={previewLines.length}>
+          <div class="preview__empty">
+            Add rule details and at least one condition to see a preview.
+          </div>
+        </template>
+      </div>
+    </section>
+
+    <template if:true={isSaving}>
+      <div class="saving">
+        <lightning-spinner alternative-text="Saving" size="medium"></lightning-spinner>
+      </div>
+    </template>
+  </div>
+</template>

@@ -40,6 +40,11 @@ model RoundRobinGroup {
   description      String?
   distributionMode String   @default("equal") // equal, weighted
   isActive         Boolean  @default(true)
+
+  // Salesforce sync
+  salesforceId     String?  @unique // ID of corresponding Routing_Group__c record
+  lastSyncedAt     DateTime?
+
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -124,13 +129,25 @@ model Rule {
   groupId          String
   priority         Int      @default(0) // lower number = higher priority
   isActive         Boolean  @default(true)
-  conditions       String   // JSON string of conditions
+  objectType       String   @default("Lead") // Lead, Contact, or Both
+
+  // SOQL-based condition (evaluated by Salesforce)
+  soqlCondition    String?  // e.g., "Industry = 'Technology' AND AnnualRevenue > 1000000"
+
+  // Legacy fields (for backward compatibility during migration)
+  conditions       String?  // JSON string of conditions (deprecated)
   conditionLogic   String   @default("AND") // AND or OR
   timeConstraints  String?  // JSON: { days: [1,2,3], hours: { start: 9, end: 17 }, timezone: "..." }
   fallbackGroupId  String?  // if primary group unavailable
-  customExpression String?  // JavaScript expression for complex logic
-  matchCount       Int      @default(0) // analytics
-  conversionCount  Int      @default(0) // analytics
+  customExpression String?  // JavaScript expression (deprecated - use soqlCondition)
+
+  // Salesforce sync
+  salesforceId     String?  @unique // ID of corresponding Routing_Rule__c record
+  lastSyncedAt     DateTime?
+
+  // Analytics
+  matchCount       Int      @default(0)
+  conversionCount  Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

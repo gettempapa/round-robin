@@ -65,12 +65,14 @@ export const toolSchemas = {
     name: z.string().describe("Name of the routing rule"),
     description: z.string().optional().describe("Description of what the rule does"),
     groupId: z.string().describe("ID of the group to route matching contacts to"),
+    soqlCondition: z.string().optional().describe("SOQL WHERE clause condition (preferred). Example: \"Industry = 'Technology' AND AnnualRevenue > 1000000\""),
+    objectType: z.enum(["Lead", "Contact", "Both"]).default("Lead").describe("Which Salesforce object type this rule applies to"),
     conditions: z.array(z.object({
       field: z.string().describe("Field to match on"),
       operator: z.enum(["equals", "notEquals", "contains", "notContains", "startsWith", "greaterThan", "lessThan", "isBlank", "isPresent"]),
       value: z.string().describe("Value to match"),
-    })).describe("Conditions that must match for the rule to apply"),
-    conditionLogic: z.enum(["AND", "OR"]).default("AND").describe("How to combine conditions"),
+    })).optional().describe("Legacy conditions array (use soqlCondition instead)"),
+    conditionLogic: z.enum(["AND", "OR"]).default("AND").describe("How to combine legacy conditions"),
   }),
 
   updateRule: z.object({
@@ -293,29 +295,45 @@ export const claudeTools = [
   // Rule tools
   {
     name: "createRule",
-    description: "Create a new routing rule that automatically assigns contacts matching certain conditions to a group.",
+    description: `Create a new routing rule that automatically assigns leads/contacts matching certain conditions to a group.
+
+IMPORTANT: Use 'soqlCondition' to define the rule using a SOQL WHERE clause. This is the preferred method.
+
+Examples of soqlCondition:
+- "Industry = 'Technology'" - simple equality
+- "Industry = 'Technology' AND AnnualRevenue > 1000000" - multiple conditions with AND
+- "LeadSource = 'Web' OR LeadSource = 'Referral'" - OR conditions
+- "Industry IN ('Technology', 'Finance', 'Healthcare')" - IN clause
+- "Company LIKE '%Inc%'" - pattern matching
+- "AnnualRevenue >= 500000 AND NumberOfEmployees > 100" - numeric comparisons
+- "Status != 'Disqualified' AND Email != null" - not equals and null checks
+
+Common Salesforce fields for Leads: Industry, LeadSource, Status, Company, AnnualRevenue, NumberOfEmployees, Country, State, Title
+Common Salesforce fields for Contacts: LeadSource, MailingCountry, MailingState, Title, Department`,
     input_schema: {
       type: "object" as const,
       properties: {
         name: { type: "string", description: "Name of the routing rule" },
         description: { type: "string", description: "Description of what the rule does" },
-        groupId: { type: "string", description: "ID of the group to route matching contacts to" },
+        groupId: { type: "string", description: "ID of the group to route matching records to" },
+        soqlCondition: { type: "string", description: "SOQL WHERE clause condition. Example: \"Industry = 'Technology' AND AnnualRevenue > 1000000\". This is the preferred way to define conditions." },
+        objectType: { type: "string", enum: ["Lead", "Contact", "Both"], description: "Which Salesforce object type this rule applies to. Defaults to Lead." },
         conditions: {
           type: "array",
           items: {
             type: "object",
             properties: {
-              field: { type: "string", description: "Field to match (e.g., 'leadSource', 'industry', 'companySize')" },
+              field: { type: "string", description: "Field to match" },
               operator: { type: "string", enum: ["equals", "notEquals", "contains", "notContains", "startsWith", "greaterThan", "lessThan", "isBlank", "isPresent"] },
               value: { type: "string", description: "Value to match against" },
             },
             required: ["field", "operator", "value"],
           },
-          description: "Conditions that must match",
+          description: "Legacy conditions array (use soqlCondition instead)",
         },
-        conditionLogic: { type: "string", enum: ["AND", "OR"], description: "How to combine conditions" },
+        conditionLogic: { type: "string", enum: ["AND", "OR"], description: "How to combine legacy conditions" },
       },
-      required: ["name", "groupId", "conditions"],
+      required: ["name", "groupId"],
     },
   },
   {

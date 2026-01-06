@@ -452,7 +452,16 @@ export async function executeToolCall(
 
       // ============ RULE OPERATIONS ============
       case "createRule": {
-        const { name, description, groupId, conditions, conditionLogic = "AND", confirmed } = toolInput;
+        const {
+          name,
+          description,
+          groupId,
+          soqlCondition,  // New: SOQL WHERE clause (preferred)
+          conditions,      // Legacy: JSON conditions array
+          conditionLogic = "AND",
+          objectType = "Lead",  // Lead, Contact, or Both
+          confirmed
+        } = toolInput;
 
         // Get the group for display
         const group = await db.roundRobinGroup.findUnique({
@@ -465,17 +474,19 @@ export async function executeToolCall(
             success: true,
             data: {
               pending: true,
-              ruleData: { name, description, groupId, conditions, conditionLogic },
+              ruleData: { name, description, groupId, soqlCondition, conditions, conditionLogic, objectType },
             },
             uiComponent: {
               type: "ruleConfirmation",
               props: {
                 name,
-                description: description || `Route contacts matching conditions to ${group?.name || 'group'}`,
+                description: description || `Route ${objectType.toLowerCase()}s matching conditions to ${group?.name || 'group'}`,
                 groupName: group?.name || "Unknown Group",
                 groupId,
-                conditions,
+                soqlCondition,  // Show SOQL condition in UI
+                conditions,      // Legacy fallback
                 conditionLogic,
+                objectType,
               },
             },
           };
@@ -509,7 +520,10 @@ export async function executeToolCall(
             description: description || null,
             groupId,
             rulesetId: ruleset.id,
-            conditions: JSON.stringify(conditions),
+            objectType,
+            // Use SOQL condition if provided, otherwise fall back to legacy conditions
+            soqlCondition: soqlCondition || null,
+            conditions: conditions ? JSON.stringify(conditions) : null,
             conditionLogic,
             priority: (maxPriority._max.priority || 0) + 1,
             isActive: true,

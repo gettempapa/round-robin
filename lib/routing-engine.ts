@@ -403,7 +403,13 @@ export async function autoRouteContact(
 
         // Evaluate standard conditions
         // Handle cases where conditions might be over-stringified
-        let conditions: Condition[];
+        let conditions: Condition[] = [];
+
+        // Skip if no conditions defined (rule might use SOQL condition instead)
+        if (!rule.conditions) {
+          continue;
+        }
+
         try {
           let parsed = JSON.parse(rule.conditions);
           // If it's a string, keep parsing until we get an array
@@ -573,7 +579,13 @@ export async function previewRouting(contactData: Contact): Promise<{
 
       // Check conditions
       // Handle cases where conditions might be over-stringified
-      let conditions: Condition[];
+      let conditions: Condition[] = [];
+
+      // Skip if no conditions defined
+      if (!rule.conditions) {
+        continue;
+      }
+
       try {
         let parsed = JSON.parse(rule.conditions);
         // If it's a string, keep parsing until we get an array
